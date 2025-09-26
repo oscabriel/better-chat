@@ -1,0 +1,21 @@
+node_modules
+.turbo
+.alchemy
+.env*
+!.env.example
+
+# AI rules
+.cursor
+AGENTS.md
+CLAUDE.md
+.cursor/
+.ruler/
+
+plans/
+
+# START Ruler Generated Files
+.codex/
+/AGENTS.md
+/AGENTS.md.bak
+# END Ruler Generated Files
+
