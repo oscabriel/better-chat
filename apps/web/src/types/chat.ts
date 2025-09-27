@@ -15,10 +15,21 @@ export type ConversationListResponse = {
 	items: ConversationSummary[];
 };
 
+export type MessagePart = {
+	type: string;
+	text?: string;
+	state?: string;
+	[key: string]: unknown;
+};
+
 export type StoredMessage = {
 	id: string;
 	role: string;
-	content: string;
+	parts: MessagePart[];
+	reasoning: MessagePart[];
+	toolCalls: MessagePart[];
+	toolResults: MessagePart[];
+	error: MessagePart[] | null;
 	created: number | string;
 };
 
@@ -27,22 +38,17 @@ export type MessageListResponse = {
 	nextCursor: number | null;
 };
 
-export type TextPart = {
-	type: "text";
-	text: string;
-};
-
 export type EnrichedMessage = {
 	id: string;
 	role: "user" | "assistant" | "system";
-	parts: Array<TextPart>;
+	parts: MessagePart[];
 	created: number;
 };
 
 export type MaybeEnrichedMessage = {
 	id: string;
 	role: string;
-	parts?: Array<{ type: string; text?: string }>;
+	parts?: MessagePart[];
 	created?: number;
 };
 

@@ -19,6 +19,7 @@
 	},
 	"dependencies": {
 		"@ai-sdk/google": "^2.0.17",
+		"@ai-sdk/provider": "^2.0.0",
 		"@hono/trpc-server": "^0.4.0",
 		"@libsql/client": "^0.15.15",
 		"@react-email/render": "^1.3.1",

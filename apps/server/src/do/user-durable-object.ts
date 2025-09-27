@@ -2,9 +2,44 @@ import { DurableObject } from "cloudflare:workers";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
+import type { MessageInput } from "@/server/lib/do";
 // @ts-expect-error - generated JS file has no types
 import migrations from "./migrations/migrations.js";
 import * as schema from "./schema/chat";
+
+function parseJsonArray(value: unknown): unknown[] {
+	if (Array.isArray(value)) {
+		return value;
+	}
+	if (typeof value === "string" && value.length > 0) {
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed) ? parsed : [];
+		} catch (error) {
+			console.error("failed to parse json array", { value, error });
+			return [];
+		}
+	}
+	if (value == null) {
+		return [];
+	}
+	return [];
+}
+
+function parseJson<T>(value: unknown): T | null {
+	if (value == null) {
+		return null;
+	}
+	if (typeof value === "string" && value.length > 0) {
+		try {
+			return JSON.parse(value) as T;
+		} catch (error) {
+			console.error("failed to parse json value", { value, error });
+			return null;
+		}
+	}
+	return value as T;
+}
 
 export class UserDurableObject extends DurableObject {
 	private db: ReturnType<typeof drizzle>;
@@ -84,7 +119,20 @@ export class UserDurableObject extends DurableObject {
 				: null;
 
 		return {
-			items: rows,
+			items: rows.map((row) => ({
+				id: row.id,
+				conversationId: row.conversationId,
+				role: row.role,
+				parts: parseJsonArray(row.parts),
+				reasoning: parseJsonArray(row.reasoning),
+				toolCalls: parseJsonArray(row.toolCalls),
+				toolResults: parseJsonArray(row.toolResults),
+				error: parseJson(row.error),
+				created:
+					row.created instanceof Date
+						? row.created.getTime()
+						: Number(row.created) || 0,
+			})),
 			nextCursor,
 		};
 	}
@@ -101,15 +149,7 @@ export class UserDurableObject extends DurableObject {
 		return { id: conversationId, title: title ?? null };
 	}
 
-	async appendMessages(
-		conversationId: string,
-		items: Array<{
-			id: string;
-			role: string;
-			content: string;
-			created?: number;
-		}>,
-	) {
+	async appendMessages(conversationId: string, items: MessageInput[]) {
 		if (!items.length) {
 			return { count: 0 };
 		}
@@ -125,7 +165,11 @@ export class UserDurableObject extends DurableObject {
 			id: m.id,
 			conversationId,
 			role: m.role,
-			content: m.content.slice(0, 32_000),
+			parts: JSON.stringify(m.parts ?? []),
+			reasoning: JSON.stringify(m.reasoning ?? []),
+			toolCalls: JSON.stringify(m.toolCalls ?? []),
+			toolResults: JSON.stringify(m.toolResults ?? []),
+			error: m.error === undefined ? null : JSON.stringify(m.error),
 			created: m.created ? new Date(m.created) : new Date(),
 		}));
 		await this.db

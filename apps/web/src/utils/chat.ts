@@ -3,8 +3,8 @@ import type {
 	ApiErrorPayload,
 	EnrichedMessage,
 	MaybeEnrichedMessage,
+	MessagePart,
 	StoredMessage,
-	TextPart,
 } from "../types/chat";
 
 /**
@@ -42,6 +42,37 @@ export async function parseJsonResponse<T>(response: Response): Promise<T> {
 	return parsed as T;
 }
 
+function sanitizeParts(parts: unknown): MessagePart[] {
+	if (!Array.isArray(parts)) {
+		return [];
+	}
+	return parts
+		.map((part) => {
+			if (!part || typeof part !== "object") {
+				return null;
+			}
+			const candidate = part as { type?: unknown; text?: unknown; state?: unknown } & Record<string, unknown>;
+			if (typeof candidate.type !== "string" || candidate.type.trim().length === 0) {
+				return null;
+			}
+			const normalized: MessagePart = { type: candidate.type };
+			if (typeof candidate.text === "string") {
+				normalized.text = candidate.text;
+			}
+			if (typeof candidate.state === "string") {
+				normalized.state = candidate.state;
+			}
+			for (const [key, value] of Object.entries(candidate)) {
+				if (key === "type" || key === "text" || key === "state") {
+					continue;
+				}
+				normalized[key] = value;
+			}
+			return normalized;
+		})
+		.filter((part): part is MessagePart => part !== null);
+}
+
 export function mapStoredMessages(items: StoredMessage[]): EnrichedMessage[] {
 	return items
 		.slice()
@@ -49,12 +80,7 @@ export function mapStoredMessages(items: StoredMessage[]): EnrichedMessage[] {
 		.map((message) => ({
 			id: message.id,
 			role: message.role as "user" | "assistant" | "system",
-			parts: [
-				{
-					type: "text" as const,
-					text: message.content,
-				},
-			],
+			parts: sanitizeParts(message.parts),
 			created:
 				typeof message.created === "number"
 					? message.created
@@ -62,7 +88,7 @@ export function mapStoredMessages(items: StoredMessage[]): EnrichedMessage[] {
 		}));
 }
 
-export function isTextPart(part: unknown): part is TextPart {
+export function isTextPart(part: unknown): part is MessagePart & { type: "text"; text: string } {
 	return (
 		typeof part === "object" &&
 		part !== null &&
@@ -73,9 +99,7 @@ export function isTextPart(part: unknown): part is TextPart {
 	);
 }
 
-export function stringifyParts(
-	parts: Array<{ type: string; text?: string }> | undefined,
-): string {
+export function stringifyParts(parts: MessagePart[] | undefined): string {
 	if (!parts || parts.length === 0) return "";
 	return parts
 		.filter(isTextPart)
@@ -111,7 +135,7 @@ export function normalizeToEnriched(
 	}
 	const parts =
 		"parts" in message && Array.isArray(message.parts)
-			? (message.parts.filter(isTextPart) as TextPart[])
+			? sanitizeParts(message.parts)
 			: [];
 	return {
 		id: messageId,

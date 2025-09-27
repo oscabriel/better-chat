@@ -138,18 +138,6 @@ export function SignInForm({ redirectPath }: SignInFormProps) {
 		verifyOtpMutation.reset();
 	}
 
-	if (isPending) {
-		return (
-			<div className="mx-auto mt-10 w-full max-w-md p-6">
-				<h1 className="mb-2 text-center font-bold text-3xl">Welcome ☁️</h1>
-				<p className="mb-6 text-center text-muted-foreground">
-					Choose a sign in method below.
-				</p>
-				{/* Render empty container while loading */}
-			</div>
-		);
-	}
-
 	return (
 		<div className="mx-auto mt-10 w-full max-w-md p-6">
 			<h1 className="mb-2 text-center font-bold text-3xl">Welcome ☁️</h1>

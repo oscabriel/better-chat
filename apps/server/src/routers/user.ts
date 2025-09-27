@@ -9,7 +9,7 @@ export const userRouter = router({
 		return await ctx.db
 			.select()
 			.from(user)
-			.where(eq(user.id, ctx.session.user.id))
+			.where(eq(user.id, ctx.session?.user?.id ?? ""))
 			.get();
 	}),
 
@@ -28,7 +28,7 @@ export const userRouter = router({
 					image: input.image,
 					updatedAt: new Date(),
 				})
-				.where(eq(user.id, ctx.session.user.id))
+				.where(eq(user.id, ctx.session?.user?.id ?? ""))
 				.returning()
 				.get();
 		}),

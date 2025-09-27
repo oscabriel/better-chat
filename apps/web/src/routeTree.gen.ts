@@ -11,16 +11,19 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ChatRouteRouteImport } from './routes/_chat/route'
-import { Route as ChatIndexRouteImport } from './routes/_chat/index'
+import { Route as PolicyRouteImport } from './routes/policy'
+import { Route as DocsRouteImport } from './routes/docs'
+import { Route as ChatRouteRouteImport } from './routes/chat/route'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChatIndexRouteImport } from './routes/chat/index'
 import { Route as SettingsUsageRouteImport } from './routes/settings/usage'
 import { Route as SettingsToolsRouteImport } from './routes/settings/tools'
 import { Route as SettingsProvidersRouteImport } from './routes/settings/providers'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as SettingsModelsRouteImport } from './routes/settings/models'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as ChatChatIdRouteImport } from './routes/chat/$chatId'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
-import { Route as ChatChatChatIdRouteImport } from './routes/_chat/chat.$chatId'
 
 const SettingsRouteLazyRouteImport = createFileRoute('/settings')()
 
@@ -31,8 +34,24 @@ const SettingsRouteLazyRoute = SettingsRouteLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/settings/route.lazy').then((d) => d.Route),
 )
+const PolicyRoute = PolicyRouteImport.update({
+  id: '/policy',
+  path: '/policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRouteRoute = ChatRouteRouteImport.update({
-  id: '/_chat',
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -70,97 +89,120 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRouteLazyRoute,
 } as any)
+const ChatChatIdRoute = ChatChatIdRouteImport.update({
+  id: '/$chatId',
+  path: '/$chatId',
+  getParentRoute: () => ChatRouteRoute,
+} as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/auth/sign-in',
   path: '/auth/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatChatChatIdRoute = ChatChatChatIdRouteImport.update({
-  id: '/chat/$chatId',
-  path: '/chat/$chatId',
-  getParentRoute: () => ChatRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/chat': typeof ChatRouteRouteWithChildren
+  '/docs': typeof DocsRoute
+  '/policy': typeof PolicyRoute
   '/settings': typeof SettingsRouteLazyRouteWithChildren
   '/auth/sign-in': typeof AuthSignInRoute
+  '/chat/$chatId': typeof ChatChatIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/tools': typeof SettingsToolsRoute
   '/settings/usage': typeof SettingsUsageRoute
-  '/': typeof ChatIndexRoute
-  '/chat/$chatId': typeof ChatChatChatIdRoute
+  '/chat/': typeof ChatIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/policy': typeof PolicyRoute
   '/settings': typeof SettingsRouteLazyRouteWithChildren
   '/auth/sign-in': typeof AuthSignInRoute
+  '/chat/$chatId': typeof ChatChatIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/tools': typeof SettingsToolsRoute
   '/settings/usage': typeof SettingsUsageRoute
-  '/': typeof ChatIndexRoute
-  '/chat/$chatId': typeof ChatChatChatIdRoute
+  '/chat': typeof ChatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_chat': typeof ChatRouteRouteWithChildren
+  '/': typeof IndexRoute
+  '/chat': typeof ChatRouteRouteWithChildren
+  '/docs': typeof DocsRoute
+  '/policy': typeof PolicyRoute
   '/settings': typeof SettingsRouteLazyRouteWithChildren
   '/auth/sign-in': typeof AuthSignInRoute
+  '/chat/$chatId': typeof ChatChatIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/tools': typeof SettingsToolsRoute
   '/settings/usage': typeof SettingsUsageRoute
-  '/_chat/': typeof ChatIndexRoute
-  '/_chat/chat/$chatId': typeof ChatChatChatIdRoute
+  '/chat/': typeof ChatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
+    | '/chat'
+    | '/docs'
+    | '/policy'
     | '/settings'
     | '/auth/sign-in'
+    | '/chat/$chatId'
     | '/settings/appearance'
     | '/settings/models'
     | '/settings/profile'
     | '/settings/providers'
     | '/settings/tools'
     | '/settings/usage'
-    | '/'
-    | '/chat/$chatId'
+    | '/chat/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
+    | '/docs'
+    | '/policy'
     | '/settings'
     | '/auth/sign-in'
+    | '/chat/$chatId'
     | '/settings/appearance'
     | '/settings/models'
     | '/settings/profile'
     | '/settings/providers'
     | '/settings/tools'
     | '/settings/usage'
-    | '/'
-    | '/chat/$chatId'
+    | '/chat'
   id:
     | '__root__'
-    | '/_chat'
+    | '/'
+    | '/chat'
+    | '/docs'
+    | '/policy'
     | '/settings'
     | '/auth/sign-in'
+    | '/chat/$chatId'
     | '/settings/appearance'
     | '/settings/models'
     | '/settings/profile'
     | '/settings/providers'
     | '/settings/tools'
     | '/settings/usage'
-    | '/_chat/'
-    | '/_chat/chat/$chatId'
+    | '/chat/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   ChatRouteRoute: typeof ChatRouteRouteWithChildren
+  DocsRoute: typeof DocsRoute
+  PolicyRoute: typeof PolicyRoute
   SettingsRouteLazyRoute: typeof SettingsRouteLazyRouteWithChildren
   AuthSignInRoute: typeof AuthSignInRoute
 }
@@ -174,17 +216,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_chat': {
-      id: '/_chat'
-      path: ''
-      fullPath: ''
+    '/policy': {
+      id: '/policy'
+      path: '/policy'
+      fullPath: '/policy'
+      preLoaderRoute: typeof PolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_chat/': {
-      id: '/_chat/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/': {
+      id: '/chat/'
+      path: '/'
+      fullPath: '/chat/'
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRouteRoute
     }
@@ -230,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRouteLazyRoute
     }
+    '/chat/$chatId': {
+      id: '/chat/$chatId'
+      path: '/$chatId'
+      fullPath: '/chat/$chatId'
+      preLoaderRoute: typeof ChatChatIdRouteImport
+      parentRoute: typeof ChatRouteRoute
+    }
     '/auth/sign-in': {
       id: '/auth/sign-in'
       path: '/auth/sign-in'
@@ -237,24 +307,17 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_chat/chat/$chatId': {
-      id: '/_chat/chat/$chatId'
-      path: '/chat/$chatId'
-      fullPath: '/chat/$chatId'
-      preLoaderRoute: typeof ChatChatChatIdRouteImport
-      parentRoute: typeof ChatRouteRoute
-    }
   }
 }
 
 interface ChatRouteRouteChildren {
+  ChatChatIdRoute: typeof ChatChatIdRoute
   ChatIndexRoute: typeof ChatIndexRoute
-  ChatChatChatIdRoute: typeof ChatChatChatIdRoute
 }
 
 const ChatRouteRouteChildren: ChatRouteRouteChildren = {
+  ChatChatIdRoute: ChatChatIdRoute,
   ChatIndexRoute: ChatIndexRoute,
-  ChatChatChatIdRoute: ChatChatChatIdRoute,
 }
 
 const ChatRouteRouteWithChildren = ChatRouteRoute._addFileChildren(
@@ -283,7 +346,10 @@ const SettingsRouteLazyRouteWithChildren =
   SettingsRouteLazyRoute._addFileChildren(SettingsRouteLazyRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   ChatRouteRoute: ChatRouteRouteWithChildren,
+  DocsRoute: DocsRoute,
+  PolicyRoute: PolicyRoute,
   SettingsRouteLazyRoute: SettingsRouteLazyRouteWithChildren,
   AuthSignInRoute: AuthSignInRoute,
 }

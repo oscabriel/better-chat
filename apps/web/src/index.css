@@ -168,11 +168,46 @@
 		font-family: "Geist Mono", monospace;
 		border-radius: 0 !important;
 		box-shadow: none !important;
+		--color-scrollbar-track: transparent;
+		scrollbar-width: auto;
+		scrollbar-color: var(--border) transparent;
 	}
 	body {
 		@apply bg-background text-foreground;
 	}
-	html {
-		overflow-y: scroll;
+
+	::selection {
+		background-color: var(--accent);
+		color: var(--accent-foreground);
+	}
+
+	::-webkit-scrollbar {
+		width: 0.5rem;
+		scrollbar-width: thin;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background-color: var(--border) !important;
+		border-radius: 9999px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: var(--color-scrollbar-track);
+	}
+}
+
+@layer utilities {
+	.scrollbar-thin {
+		scrollbar-width: thin;
+	}
+
+	.scrollbar-hide {
+		/* Firefox */
+		scrollbar-width: none;
+
+		/* WebKit browsers (Chrome, Safari, Edge) */
+		&::-webkit-scrollbar {
+			display: none;
+		}
 	}
 }

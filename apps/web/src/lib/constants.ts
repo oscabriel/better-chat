@@ -1,4 +1,4 @@
-import type { QuickPrompt } from "../types/chat";
+import type { QuickPrompt } from "@/web/types/chat";
 
 /**
  * Application-wide constants
@@ -76,3 +76,36 @@ export const QUICK_PROMPTS: QuickPrompt[] = [
 		text: "Explain how to integrate Better Auth into an existing React application, including server setup and client usage.",
 	},
 ];
+
+export const SETTINGS_NAV_ITEMS = [
+	{
+		to: "/settings/profile",
+		label: "Profile",
+		description: "Account details & sessions",
+	},
+	{
+		to: "/settings/providers",
+		label: "Providers",
+		description: "Manage API providers",
+	},
+	{
+		to: "/settings/models",
+		label: "Models",
+		description: "Default model preferences",
+	},
+	{
+		to: "/settings/tools",
+		label: "Tools",
+		description: "Workspace tool integrations",
+	},
+	{
+		to: "/settings/appearance",
+		label: "Appearance",
+		description: "Theme & UI density",
+	},
+	{
+		to: "/settings/usage",
+		label: "Usage",
+		description: "Quota & billing insights",
+	},
+] as const;

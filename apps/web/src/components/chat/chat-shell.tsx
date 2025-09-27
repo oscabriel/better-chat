@@ -1,55 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-	createFileRoute,
-	Navigate,
-	Outlet,
-	useNavigate,
-	useRouterState,
-} from "@tanstack/react-router";
+import { useNavigate, useRouterState, Outlet } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Loader } from "@/web/components/navigation/loader";
 import { Button } from "@/web/components/ui/button";
 import { Sheet, SheetContent } from "@/web/components/ui/sheet";
 import { useIsMobile } from "@/web/hooks/use-mobile";
-import { authClient } from "@/web/lib/auth-client";
 import { QUICK_PROMPTS } from "@/web/lib/constants";
 import type { ConversationListResponse } from "@/web/types/chat";
 import { generateConversationId, parseJsonResponse } from "@/web/utils/chat";
 import { cn } from "@/web/utils/cn";
 import { formatDistanceToNowStrict } from "@/web/utils/date";
-import { MessageInput } from "./-components/chat/message-input";
+import { MessageInput } from "./message-input";
 
-export const Route = createFileRoute("/_chat")({
-	component: ChatLayout,
-});
-
-function ChatLayout() {
-	const location = useRouterState({ select: (state) => state.location });
-	const { data: session, isPending } = authClient.useSession();
-	const isChatPath = (location.pathname ?? "").startsWith("/chat");
-
-	if (isPending) {
-		return <Loader />;
-	}
-
-	if (!session?.user) {
-		if (isChatPath) {
-			return (
-				<Navigate
-					to="/auth/sign-in"
-					replace
-					search={{ redirect: location.href ?? location.pathname ?? "/" }}
-				/>
-			);
-		}
-		return <Outlet />;
-	}
-
-	return <ChatShell />;
-}
-
-function ChatShell() {
+export function ChatShell() {
 	const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
 	const navigate = useNavigate();
 	const location = useRouterState({ select: (state) => state.location });
@@ -112,7 +75,7 @@ function ChatShell() {
 	const startNewConversation = () => {
 		setCreatingConversation(false);
 		setMobileSidebarOpen(false);
-		void navigate({ to: "/" });
+		void navigate({ to: "/chat" });
 	};
 
 	const handleSelectConversation = (conversationId: string) => {
@@ -219,39 +182,6 @@ function ChatShell() {
 				</aside>
 				<section className="min-w-0 flex-1 basis-0">
 					<div className="sticky top-[5rem] flex h-[calc(100svh-5rem-1.5rem)] max-w-[100vw] flex-col overflow-hidden rounded-lg border bg-card shadow-sm md:h-[calc(100svh-5rem-0.5rem)]">
-						{isMobile && (
-							<Sheet
-								open={mobileSidebarOpen}
-								onOpenChange={setMobileSidebarOpen}
-							>
-								<SheetContent
-									side="left"
-									className="w-[min(85vw,320px)] p-3 sm:p-4"
-								>
-									<div className="flex h-full flex-col overflow-hidden">
-										<div className="mb-4">
-											<h2 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
-												Chat History
-											</h2>
-										</div>
-										<Button
-											onClick={() => {
-												setMobileSidebarOpen(false);
-												startNewConversation();
-											}}
-											size="sm"
-											className="mb-4 gap-2"
-											disabled={creatingConversation}
-										>
-											<Plus className="h-4 w-4" /> New Chat
-										</Button>
-										<div className="-mx-2 flex-1 overflow-y-auto px-2">
-											{getConversationList(handleSelectConversation)}
-										</div>
-									</div>
-								</SheetContent>
-							</Sheet>
-						)}
 						{hasActiveConversation ? (
 							<Outlet />
 						) : (

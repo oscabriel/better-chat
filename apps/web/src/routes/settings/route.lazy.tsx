@@ -7,45 +7,14 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Loader } from "@/web/components/navigation/loader";
+import { SettingsPending } from "@/web/components/page-skeleton";
 import { authClient } from "@/web/lib/auth-client";
+import { SETTINGS_NAV_ITEMS } from "@/web/lib/constants";
 import { cn } from "@/web/utils/cn";
-
-const NAV_ITEMS = [
-	{
-		to: "/settings/profile",
-		label: "Profile",
-		description: "Account details & sessions",
-	},
-	{
-		to: "/settings/providers",
-		label: "Providers",
-		description: "Manage API providers",
-	},
-	{
-		to: "/settings/models",
-		label: "Models",
-		description: "Default model preferences",
-	},
-	{
-		to: "/settings/tools",
-		label: "Tools",
-		description: "Workspace tool integrations",
-	},
-	{
-		to: "/settings/appearance",
-		label: "Appearance",
-		description: "Theme & UI density",
-	},
-	{
-		to: "/settings/usage",
-		label: "Usage",
-		description: "Quota & billing insights",
-	},
-] as const;
 
 export const Route = createLazyFileRoute("/settings")({
 	component: SettingsLayout,
+	pendingComponent: SettingsPending,
 });
 
 function SettingsLayout() {
@@ -61,7 +30,7 @@ function SettingsLayout() {
 	}, [location.pathname, navigate]);
 
 	if (isPending) {
-		return <Loader />;
+		return <SettingsPending />;
 	}
 
 	if (!session?.user) {
@@ -88,7 +57,7 @@ function SettingsLayout() {
 						</div>
 						<div className="-mx-1 flex-1 overflow-y-auto px-1">
 							<div className="space-y-2">
-								{NAV_ITEMS.map((item) => {
+								{SETTINGS_NAV_ITEMS.map((item) => {
 									const isActive =
 										activePath === item.to ||
 										activePath.startsWith(`${item.to}/`);
@@ -117,7 +86,7 @@ function SettingsLayout() {
 				</aside>
 				<section className="min-w-0 flex-1 basis-0">
 					<div className="mb-4 space-y-2 md:hidden">
-						{NAV_ITEMS.map((item) => {
+						{SETTINGS_NAV_ITEMS.map((item) => {
 							const isActive =
 								activePath === item.to || activePath.startsWith(`${item.to}/`);
 							return (
@@ -140,7 +109,7 @@ function SettingsLayout() {
 							);
 						})}
 					</div>
-					<div className="sticky top-[5rem] flex min-h-[calc(100svh-5rem-1.5rem)] max-w-[100vw] flex-col overflow-hidden rounded-lg border bg-card shadow-sm md:min-h-[calc(100svh-5rem-0.5rem)]">
+					<div className="sticky top-[5rem] flex h-[calc(100svh-5rem-1.5rem)] max-w-[100vw] flex-col overflow-hidden rounded-lg border bg-card shadow-sm md:h-[calc(100svh-5rem-0.5rem)]">
 						<div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
 							<Outlet />
 						</div>

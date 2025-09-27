@@ -8,15 +8,23 @@ export type ConversationRecord = {
 export type MessageRecord = {
 	id: string;
 	conversationId: string;
-	role: string;
-	content: string;
-	created: Date;
+	role: "user" | "assistant" | "system";
+	parts: unknown[];
+	reasoning: unknown[];
+	toolCalls: unknown[];
+	toolResults: unknown[];
+	error: unknown | null;
+	created: number;
 };
 
 export type MessageInput = {
 	id: string;
-	role: string;
-	content: string;
+	role: "user" | "assistant" | "system";
+	parts: unknown[];
+	reasoning?: unknown[];
+	toolCalls?: unknown[];
+	toolResults?: unknown[];
+	error?: unknown | null;
 	created?: number;
 };
 

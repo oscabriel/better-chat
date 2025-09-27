@@ -39,8 +39,12 @@ export const Route = createFileRoute("/settings/models")({
 });
 
 function ModelSettings() {
-	const [primaryModel, setPrimaryModel] = useState(modelOptions[0].id);
-	const [fallbackModel, setFallbackModel] = useState(modelOptions[1].id);
+	const [primaryModel, setPrimaryModel] = useState<
+		(typeof modelOptions)[number]["id"]
+	>(modelOptions[0].id);
+	const [fallbackModel, setFallbackModel] = useState<
+		(typeof modelOptions)[number]["id"]
+	>(modelOptions[1].id);
 
 	return (
 		<div className="space-y-6">

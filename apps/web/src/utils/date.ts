@@ -36,3 +36,20 @@ export function formatDistanceToNowStrict(
 
 	return options.addSuffix ? `${result} ago` : result;
 }
+
+/**
+ * Get the time of day label for a given date
+ */
+export function getTimeOfDayLabel(date: Date) {
+	const hour = date.getHours();
+	if (hour >= 5 && hour < 12) {
+		return "this morning";
+	}
+	if (hour >= 12 && hour < 17) {
+		return "this afternoon";
+	}
+	if (hour >= 17 && hour < 21) {
+		return "this evening";
+	}
+	return "tonight";
+}
