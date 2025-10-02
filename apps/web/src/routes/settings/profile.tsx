@@ -12,7 +12,7 @@ export const Route = createFileRoute("/settings/profile")({
 
 function ProfilePage() {
 	return (
-		<Card className="bg-background">
+		<Card>
 			<CardContent className="space-y-6">
 				<ProfileInfo />
 

@@ -1,20 +1,19 @@
 import { useChat } from "@ai-sdk/react";
-import {
-	useMutation,
-	useQuery,
-	useQueryClient,
-	useQuery as useReactQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
 import { Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MessageInput } from "@/web/components/chat/message-input";
 import { MessageRenderer } from "@/web/components/chat/message-renderer";
 import { ChatPending } from "@/web/components/page-skeleton";
 import { Button } from "@/web/components/ui/button";
 import { Card } from "@/web/components/ui/card";
+import {
+	useUpdateUserSettings,
+	useUserSettings,
+} from "@/web/hooks/use-user-settings";
 import { MAX_MESSAGE_BATCH } from "@/web/lib/constants";
 import type {
 	ConversationSummary,
@@ -228,20 +227,9 @@ function ChatPage() {
 		undefined,
 	);
 
-	// Load user settings to determine BYOK disabled providers
-	const settingsQuery = useReactQuery<{
-		selectedModel: string;
-		apiKeys: Record<string, string>;
-	}>({
-		queryKey: ["user", "settings"],
-		queryFn: async () => {
-			const response = await fetch(`${apiBase}/user/settings`, {
-				credentials: "include",
-			});
-			return parseJsonResponse(response);
-		},
-		staleTime: 30_000,
-	});
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
+	const updateSettings = useUpdateUserSettings();
 
 	// Initialize selector with persisted user default when it becomes available
 	useEffect(() => {
@@ -249,6 +237,18 @@ function ChatPage() {
 			setSelectedModelId(settingsQuery.data.selectedModel);
 		}
 	}, [selectedModelId, settingsQuery.data?.selectedModel]);
+
+	const handleModelChange = useCallback(
+		async (id: string) => {
+			setSelectedModelId(id);
+			try {
+				await updateSettings({ selectedModel: id });
+			} catch (_) {
+				// Ignore errors
+			}
+		},
+		[updateSettings],
+	);
 
 	const title =
 		(conversationQuery.data as ConversationSummary)?.title?.trim() ||
@@ -280,7 +280,7 @@ function ChatPage() {
 				</div>
 			</div>
 			<div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-				<div className="mx-auto w-full max-w-3xl space-y-4">
+				<div className="w-full space-y-4">
 					{messages.map((message) => (
 						<MessageRenderer key={message.id} message={message} />
 					))}
@@ -308,22 +308,11 @@ function ChatPage() {
 				</div>
 			</div>
 			<div className="flex-shrink-0 border-t bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
-				<div className="mx-auto w-full max-w-3xl">
+				<div className="w-full">
 					<MessageInput
 						disabled={status === "streaming"}
 						modelId={selectedModelId}
-						onModelChange={async (id) => {
-							setSelectedModelId(id);
-							// persist to user settings
-							try {
-								await fetch(`${apiBase}/user/settings`, {
-									method: "PUT",
-									headers: { "Content-Type": "application/json" },
-									credentials: "include",
-									body: JSON.stringify({ selectedModel: id }),
-								});
-							} catch (_) {}
-						}}
+						onModelChange={handleModelChange}
 						onSendMessage={({ text }) => sendMessage({ text })}
 					/>
 				</div>

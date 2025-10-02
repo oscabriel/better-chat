@@ -2,6 +2,8 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { Button } from "@/web/components/ui/button";
 import { useIsMobile } from "@/web/hooks/use-mobile";
+import { useUserSettings } from "@/web/hooks/use-user-settings";
+import { cn } from "@/web/utils/cn";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
@@ -16,6 +18,9 @@ export default function Header() {
 	const isSettingsRoute = pathname.startsWith("/settings");
 	const showSidebarToggle = isMobile && (isChatRoute || isSettingsRoute);
 
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
+
 	const handleToggleSidebar = () => {
 		if (isChatRoute) {
 			window.dispatchEvent(new CustomEvent(CHAT_SIDEBAR_EVENT));
@@ -29,7 +34,14 @@ export default function Header() {
 	return (
 		<div className="bg-background">
 			<header className="fixed top-0 z-50 w-full bg-background/80 px-4 backdrop-blur-sm">
-				<nav className="mx-auto flex max-w-5xl items-center justify-between py-4">
+				<nav
+					className={cn(
+						"mx-auto flex items-center justify-between py-4",
+						settingsQuery.data?.chatWidth === "comfortable"
+							? "max-w-full"
+							: "max-w-5xl",
+					)}
+				>
 					<div className="flex items-center gap-2">
 						{showSidebarToggle && (
 							<Button

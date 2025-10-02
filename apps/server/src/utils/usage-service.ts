@@ -4,7 +4,7 @@ import { usageEvents } from "@/server/db/schema/usage";
 import {
 	DEFAULT_DAILY_MESSAGE_LIMIT,
 	DEFAULT_MONTHLY_MESSAGE_LIMIT,
-} from "@/server/utils/constants";
+} from "@/server/lib/constants";
 
 type UsageRecord = typeof usageEvents.$inferSelect;
 

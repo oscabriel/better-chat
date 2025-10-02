@@ -1,5 +1,6 @@
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { toast } from "sonner";
 import { ModeToggle } from "@/web/components/navigation/mode-toggle";
 import { Button } from "@/web/components/ui/button";
 import {
@@ -9,23 +10,21 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/web/components/ui/card";
-import { Separator } from "@/web/components/ui/separator";
+import {
+	useUpdateUserSettings,
+	useUserSettings,
+} from "@/web/hooks/use-user-settings";
 
-const densityOptions = [
-	{
-		id: "comfortable",
-		label: "Comfortable",
-		description: "Roomy spacing for focused reading",
-	},
+const chatWidthOptions = [
 	{
 		id: "cozy",
 		label: "Cozy",
-		description: "Balanced spacing for everyday work",
+		description: "Focused, centered conversation layout",
 	},
 	{
-		id: "compact",
-		label: "Compact",
-		description: "High-density layout for power users",
+		id: "comfortable",
+		label: "Comfortable",
+		description: "Full-width layout for spacious conversations",
 	},
 ] as const;
 
@@ -34,8 +33,28 @@ export const Route = createFileRoute("/settings/appearance")({
 });
 
 function AppearanceSettings() {
-	const [density, setDensity] =
-		useState<(typeof densityOptions)[number]["id"]>("cozy");
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
+	const updateSettings = useUpdateUserSettings();
+
+	// Update chat width
+	const updateChatWidthMutation = useMutation({
+		mutationFn: async (chatWidth: string) => {
+			return await updateSettings({ chatWidth });
+		},
+		onSuccess: () => {
+			toast.success("Chat width updated");
+		},
+		onError: (error) => {
+			toast.error((error as Error).message);
+		},
+	});
+
+	const handleChatWidthChange = (width: string) => {
+		updateChatWidthMutation.mutate(width);
+	};
+
+	const chatWidth = settingsQuery.data?.chatWidth || "cozy";
 
 	return (
 		<div className="space-y-6">
@@ -61,20 +80,22 @@ function AppearanceSettings() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Interface Density</CardTitle>
+					<CardTitle>Chat Width</CardTitle>
 					<CardDescription>
-						Choose how compact the chat and settings layouts should be rendered.
+						Control how wide the main chat interface appears. The sidebar width
+						remains constant.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{densityOptions.map((option) => {
-						const isActive = density === option.id;
+					{chatWidthOptions.map((option) => {
+						const isActive = chatWidth === option.id;
 						return (
 							<Button
 								key={option.id}
 								variant={isActive ? "secondary" : "ghost"}
 								className="flex h-auto w-full flex-col items-start gap-1 px-4 py-3 text-left"
-								onClick={() => setDensity(option.id)}
+								onClick={() => handleChatWidthChange(option.id)}
+								disabled={updateChatWidthMutation.isPending}
 							>
 								<span className="font-medium text-sm">{option.label}</span>
 								<span className="text-muted-foreground text-xs">
@@ -83,30 +104,6 @@ function AppearanceSettings() {
 							</Button>
 						);
 					})}
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Message Layout Preview</CardTitle>
-					<CardDescription>
-						Density previews help you compare spacing before applying changes
-						globally.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4 text-sm">
-					<div className="space-y-2 rounded-lg border bg-muted/40 p-4">
-						<p className="font-semibold">Assistant</p>
-						<p className="text-muted-foreground">
-							This preview updates instantly as you switch density presets,
-							giving you confidence in your choice before saving.
-						</p>
-					</div>
-					<Separator />
-					<p className="text-muted-foreground text-xs">
-						UI density preferences are stored locally for now. Coming soon: sync
-						across devices via your profile settings.
-					</p>
 				</CardContent>
 			</Card>
 		</div>

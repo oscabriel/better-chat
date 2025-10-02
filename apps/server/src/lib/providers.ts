@@ -506,3 +506,12 @@ export async function requiresAPIKey(modelId: string): Promise<boolean> {
 	const model = await getModelDefinition(modelId);
 	return model?.access === "byok" || false;
 }
+
+/**
+ * Get the display name for a model ID
+ * Returns the pretty name if found, otherwise returns the ID as-is
+ */
+export function getModelDisplayName(modelId: string): string {
+	const model = STATIC_MODELS.find((m) => m.id === modelId);
+	return model?.name ?? modelId;
+}

@@ -27,11 +27,7 @@ interface TogglePayload {
 export function McpServersDialogButton({ disabled }: { disabled?: boolean }) {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const {
-		data: servers = [],
-		isLoading,
-		isFetching,
-	} = useMcpServers({
+	const { data: servers = [], isLoading } = useMcpServers({
 		enabled: open,
 	});
 
@@ -70,29 +66,28 @@ export function McpServersDialogButton({ disabled }: { disabled?: boolean }) {
 					size="sm"
 					className="h-9 px-2"
 					disabled={disabled}
-					title="View and toggle MCP servers"
+					title="View and toggle tools"
 				>
 					<Settings2 className="mr-2 h-4 w-4" />
-					MCP Servers
+					Tools
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Model Context Protocol Servers</DialogTitle>
+					<DialogTitle>Tools</DialogTitle>
 					<DialogDescription>
-						Enable or disable documentation/tool providers available to the
-						assistant.
+						Toggle tools to make them available to the assistant.
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="max-h-80 space-y-3 pr-2">
-					{isLoading || isFetching ? (
+					{isLoading ? (
 						<div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-							Loading servers...
+							Loading tools...
 						</div>
 					) : sortedServers.length === 0 ? (
 						<div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground text-sm">
 							<Wrench className="h-5 w-5" />
-							<span>No MCP servers configured yet.</span>
+							<span>No tools configured yet.</span>
 						</div>
 					) : (
 						<div className="space-y-3">
@@ -110,7 +105,7 @@ export function McpServersDialogButton({ disabled }: { disabled?: boolean }) {
 												</span>
 												{server.isBuiltIn ? (
 													<Badge variant="secondary" className="text-xs">
-														Built-in
+														Built-In
 													</Badge>
 												) : (
 													<Badge variant="outline" className="text-xs">
@@ -158,7 +153,7 @@ export function McpServersDialogButton({ disabled }: { disabled?: boolean }) {
 					<div className="items-centered flex gap-2">
 						<ShieldCheck className="h-3.5 w-3.5" />
 						<span>
-							Changes apply instantly and affect all new AI responses.
+							Consider only enabling tools relevant to your immediate use case.
 						</span>
 					</div>
 				</div>

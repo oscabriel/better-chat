@@ -8,6 +8,7 @@ const updateSettingsSchema = z.object({
 	enabledModels: z.array(z.string()).optional(),
 	enabledMcpServers: z.array(z.string()).optional(),
 	theme: z.string().optional(),
+	chatWidth: z.string().optional(),
 });
 
 export const userSettingsRoutes = new Hono();

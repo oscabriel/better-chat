@@ -39,6 +39,7 @@ export const userSettings = sqliteTable("user_settings", {
 		'["context7","cloudflare-docs"]',
 	), // JSON array of built-in server IDs
 	theme: text("theme").default("system"),
+	chatWidth: text("chat_width").default("cozy"), // "cozy" | "comfortable"
 	updated: integer("updated", { mode: "timestamp_ms" })
 		.$defaultFn(() => new Date())
 		.$onUpdateFn(() => new Date())

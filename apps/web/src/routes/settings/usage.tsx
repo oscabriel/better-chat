@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Calendar, Loader2, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/web/components/ui/badge";
 import {
 	Card,
 	CardContent,
@@ -11,6 +10,12 @@ import {
 	CardTitle,
 } from "@/web/components/ui/card";
 import { Progress } from "@/web/components/ui/progress";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/web/components/ui/tooltip";
 import { parseJsonResponse } from "@/web/utils/chat";
 import { onSyncEvent } from "@/web/utils/sync";
 
@@ -63,6 +68,23 @@ interface UsageStats {
 	};
 }
 
+interface ModelDefinition {
+	id: string;
+	name: string;
+	provider: string;
+}
+
+// Format large numbers with K/M suffix
+function formatTokenCount(count: number): string {
+	if (count >= 1_000_000) {
+		return `${(count / 1_000_000).toFixed(2)}M`;
+	}
+	if (count >= 1_000) {
+		return `${(count / 1_000).toFixed(2)}K`;
+	}
+	return count.toLocaleString();
+}
+
 export const Route = createFileRoute("/settings/usage")({
 	component: UsageSettings,
 });
@@ -70,7 +92,19 @@ export const Route = createFileRoute("/settings/usage")({
 function UsageSettings() {
 	const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
 	const queryClient = useQueryClient();
-	const [period, setPeriod] = useState<"week" | "month">("month");
+	const [period, setPeriod] = useState<"day" | "week" | "month">("month");
+
+	// Fetch model catalog for display names
+	const modelsQuery = useQuery<ModelDefinition[]>({
+		queryKey: ["models", "all"],
+		queryFn: async () => {
+			const response = await fetch(`${apiBase}/models/all`, {
+				credentials: "include",
+			});
+			return parseJsonResponse<ModelDefinition[]>(response);
+		},
+		staleTime: 60_000 * 5, // 5 minutes
+	});
 
 	// Fetch current usage limits
 	const usageQuery = useQuery<UsageData>({
@@ -88,6 +122,10 @@ function UsageSettings() {
 	const endDate = new Date().toISOString().split("T")[0];
 	const startDate = useMemo(() => {
 		const date = new Date();
+		if (period === "day") {
+			// Today only
+			return date.toISOString().split("T")[0];
+		}
 		if (period === "week") {
 			date.setDate(date.getDate() - 7);
 		} else {
@@ -124,6 +162,12 @@ function UsageSettings() {
 			cleanup?.();
 		};
 	}, [queryClient]);
+
+	// Helper to get display name for a model ID
+	const getModelDisplayName = (modelId: string): string => {
+		const model = modelsQuery.data?.find((m) => m.id === modelId);
+		return model?.name ?? modelId;
+	};
 
 	const isLoading = usageQuery.isLoading || statsQuery.isLoading;
 
@@ -207,23 +251,72 @@ function UsageSettings() {
 						</p>
 					</div>
 
-					{dailyPercentage >= 80 && (
-						<div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-							<p className="text-amber-800 text-sm">
-								⚠️ You're approaching your daily limit. Consider upgrading for
-								higher quotas.
+					{/* Daily limit warnings */}
+					{dailyPercentage >= 100 ? (
+						<div className="rounded-lg border border-red-200 bg-red-50 p-3">
+							<p className="font-medium text-red-900 text-sm">
+								🚫 Daily limit reached
+							</p>
+							<p className="mt-1 text-red-800 text-xs">
+								You've used all your free messages for today. Add your own API
+								key in{" "}
+								<a
+									href="/settings/providers"
+									className="underline hover:text-red-900"
+								>
+									Provider Settings
+								</a>{" "}
+								for unlimited usage, or try again tomorrow.
 							</p>
 						</div>
-					)}
+					) : dailyPercentage >= 80 ? (
+						<div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+							<p className="text-amber-800 text-sm">
+								⚠️ You're approaching your daily limit. Add your own API key in{" "}
+								<a
+									href="/settings/providers"
+									className="underline hover:text-amber-900"
+								>
+									Provider Settings
+								</a>{" "}
+								for unlimited usage.
+							</p>
+						</div>
+					) : null}
 
-					{monthlyPercentage >= 80 && (
-						<div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-							<p className="text-amber-800 text-sm">
-								⚠️ You're approaching your monthly limit. Your usage will reset
-								on the 1st of next month.
+					{/* Monthly limit warnings */}
+					{monthlyPercentage >= 100 ? (
+						<div className="rounded-lg border border-red-200 bg-red-50 p-3">
+							<p className="font-medium text-red-900 text-sm">
+								🚫 Monthly limit reached
+							</p>
+							<p className="mt-1 text-red-800 text-xs">
+								You've used all your free messages for this month. Add your own
+								API key in{" "}
+								<a
+									href="/settings/providers"
+									className="underline hover:text-red-900"
+								>
+									Provider Settings
+								</a>{" "}
+								for unlimited usage. Your free quota will reset on the 1st of
+								next month.
 							</p>
 						</div>
-					)}
+					) : monthlyPercentage >= 80 ? (
+						<div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+							<p className="text-amber-800 text-sm">
+								⚠️ You're approaching your monthly limit. Add your own API key in{" "}
+								<a
+									href="/settings/providers"
+									className="underline hover:text-amber-900"
+								>
+									Provider Settings
+								</a>{" "}
+								for unlimited usage.
+							</p>
+						</div>
+					) : null}
 				</CardContent>
 			</Card>
 
@@ -237,6 +330,17 @@ function UsageSettings() {
 							</CardDescription>
 						</div>
 						<div className="flex gap-2">
+							<button
+								type="button"
+								onClick={() => setPeriod("day")}
+								className={`rounded-md px-3 py-1 text-sm ${
+									period === "day"
+										? "bg-primary text-primary-foreground"
+										: "bg-muted"
+								}`}
+							>
+								Day
+							</button>
 							<button
 								type="button"
 								onClick={() => setPeriod("week")}
@@ -263,40 +367,63 @@ function UsageSettings() {
 					</div>
 				</CardHeader>
 				<CardContent className="space-y-6">
-					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-						<div className="rounded-lg border bg-background/60 p-4">
-							<p className="text-muted-foreground text-xs uppercase tracking-wide">
-								Total Messages
-							</p>
-							<p className="mt-1 font-semibold text-2xl">
-								{totalMessages.toLocaleString()}
-							</p>
+					<TooltipProvider>
+						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+							<div className="rounded-lg border bg-background/60 p-4">
+								<p className="text-muted-foreground text-xs uppercase tracking-wide">
+									Total Messages
+								</p>
+								<p className="mt-1 font-semibold text-2xl">
+									{totalMessages.toLocaleString()}
+								</p>
+							</div>
+							<div className="rounded-lg border bg-background/60 p-4">
+								<p className="text-muted-foreground text-xs uppercase tracking-wide">
+									Input Tokens
+								</p>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<p className="mt-1 cursor-help font-semibold text-2xl">
+											{formatTokenCount(totalInputTokens)}
+										</p>
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>{totalInputTokens.toLocaleString()} tokens</p>
+									</TooltipContent>
+								</Tooltip>
+							</div>
+							<div className="rounded-lg border bg-background/60 p-4">
+								<p className="text-muted-foreground text-xs uppercase tracking-wide">
+									Output Tokens
+								</p>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<p className="mt-1 cursor-help font-semibold text-2xl">
+											{formatTokenCount(totalOutputTokens)}
+										</p>
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>{totalOutputTokens.toLocaleString()} tokens</p>
+									</TooltipContent>
+								</Tooltip>
+							</div>
+							<div className="rounded-lg border bg-background/60 p-4">
+								<p className="text-muted-foreground text-xs uppercase tracking-wide">
+									Total Tokens
+								</p>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<p className="mt-1 cursor-help font-semibold text-2xl">
+											{formatTokenCount(totalTokens)}
+										</p>
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>{totalTokens.toLocaleString()} tokens</p>
+									</TooltipContent>
+								</Tooltip>
+							</div>
 						</div>
-						<div className="rounded-lg border bg-background/60 p-4">
-							<p className="text-muted-foreground text-xs uppercase tracking-wide">
-								Input Tokens
-							</p>
-							<p className="mt-1 font-semibold text-2xl">
-								{totalInputTokens.toLocaleString()}
-							</p>
-						</div>
-						<div className="rounded-lg border bg-background/60 p-4">
-							<p className="text-muted-foreground text-xs uppercase tracking-wide">
-								Output Tokens
-							</p>
-							<p className="mt-1 font-semibold text-2xl">
-								{totalOutputTokens.toLocaleString()}
-							</p>
-						</div>
-						<div className="rounded-lg border bg-background/60 p-4">
-							<p className="text-muted-foreground text-xs uppercase tracking-wide">
-								Total Tokens
-							</p>
-							<p className="mt-1 font-semibold text-2xl">
-								{totalTokens.toLocaleString()}
-							</p>
-						</div>
-					</div>
+					</TooltipProvider>
 
 					{modelEntries.length > 0 && (
 						<div>
@@ -312,7 +439,9 @@ function UsageSettings() {
 											className="rounded-lg border bg-background/60 p-4"
 										>
 											<div className="flex items-center justify-between text-sm">
-												<span className="font-medium">{modelId}</span>
+												<span className="font-medium">
+													{getModelDisplayName(modelId)}
+												</span>
 												<span className="text-muted-foreground">
 													{entry.messages.toLocaleString()} messages
 												</span>
@@ -323,27 +452,63 @@ function UsageSettings() {
 													<p className="text-muted-foreground text-xs uppercase tracking-wide">
 														Input Tokens
 													</p>
-													<p className="font-medium text-sm">
-														{entry.inputTokens.toLocaleString()}
-													</p>
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<p className="cursor-help font-medium text-sm">
+																	{formatTokenCount(entry.inputTokens)}
+																</p>
+															</TooltipTrigger>
+															<TooltipContent>
+																<p>
+																	{entry.inputTokens.toLocaleString()} tokens
+																</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
 												</div>
 												<div>
 													<p className="text-muted-foreground text-xs uppercase tracking-wide">
 														Output Tokens
 													</p>
-													<p className="font-medium text-sm">
-														{entry.outputTokens.toLocaleString()}
-													</p>
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<p className="cursor-help font-medium text-sm">
+																	{formatTokenCount(entry.outputTokens)}
+																</p>
+															</TooltipTrigger>
+															<TooltipContent>
+																<p>
+																	{entry.outputTokens.toLocaleString()} tokens
+																</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
 												</div>
 												<div>
 													<p className="text-muted-foreground text-xs uppercase tracking-wide">
 														Total Tokens
 													</p>
-													<p className="font-medium text-sm">
-														{(
-															entry.inputTokens + entry.outputTokens
-														).toLocaleString()}
-													</p>
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<p className="cursor-help font-medium text-sm">
+																	{formatTokenCount(
+																		entry.inputTokens + entry.outputTokens,
+																	)}
+																</p>
+															</TooltipTrigger>
+															<TooltipContent>
+																<p>
+																	{(
+																		entry.inputTokens + entry.outputTokens
+																	).toLocaleString()}{" "}
+																	tokens
+																</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
 												</div>
 											</div>
 										</div>
@@ -359,31 +524,28 @@ function UsageSettings() {
 				<CardHeader>
 					<CardTitle>Need More?</CardTitle>
 					<CardDescription>
-						Upgrade your plan for higher limits and additional features
+						Add your own API keys for unlimited usage with no rate limits
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="space-y-3">
-					<div className="rounded-lg border bg-background/60 p-4">
-						<div className="flex items-center justify-between">
-							<div>
-								<h4 className="font-medium">Pro Plan</h4>
-								<p className="text-muted-foreground text-sm">
-									500 messages/day • 10,000 messages/month
-								</p>
-							</div>
-							<Badge>Coming Soon</Badge>
+				<CardContent className="space-y-4">
+					<p className="text-muted-foreground text-sm">
+						Want to remove all usage limits? Add your own API key from one or
+						more supported providers to get unlimited access. You'll only pay
+						for what you use directly through the provider.
+					</p>
+					<div className="space-y-3">
+						<div className="rounded-lg border bg-background/60 p-4">
+							<h4 className="mb-2 font-medium">Supported Providers</h4>
+							<ul className="space-y-1 text-muted-foreground text-sm">
+								<li>• OpenAI, Anthropic, Google, Meta</li>
+							</ul>
 						</div>
-					</div>
-					<div className="rounded-lg border bg-background/60 p-4">
-						<div className="flex items-center justify-between">
-							<div>
-								<h4 className="font-medium">Unlimited Plan</h4>
-								<p className="text-muted-foreground text-sm">
-									Unlimited messages • Priority support
-								</p>
-							</div>
-							<Badge>Coming Soon</Badge>
-						</div>
+						<a
+							href="/settings/providers"
+							className="flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
+						>
+							Configure API Keys
+						</a>
 					</div>
 				</CardContent>
 			</Card>

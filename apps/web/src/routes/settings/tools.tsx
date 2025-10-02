@@ -214,7 +214,7 @@ function ToolsPage() {
 											<h3 className="font-medium">{server.name}</h3>
 											{server.isBuiltIn ? (
 												<Badge variant="secondary" className="text-xs">
-													Built-in
+													Built-In
 												</Badge>
 											) : (
 												<Badge variant="outline" className="text-xs">

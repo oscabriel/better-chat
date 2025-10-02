@@ -20,6 +20,7 @@ export type UserSettings = {
 	enabledModels: string[];
 	enabledMcpServers: string[];
 	theme: string;
+	chatWidth: string;
 };
 
 export type CustomMCPServer = {

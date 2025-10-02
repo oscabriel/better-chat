@@ -4,10 +4,11 @@ import { generateText } from "ai";
 import type { StoredUIMessage, UserDOStub } from "@/server/lib/do";
 
 import { extractMessageText } from "./messages";
+import { TITLE_GENERATION_CONFIG, TITLE_GENERATION_PROMPT } from "./prompts";
 
-const TITLE_MODEL_NAME = "gemini-2.5-flash-lite";
-const TITLE_MAX_LENGTH = 80;
-const TITLE_MAX_WORDS = 6;
+const TITLE_MODEL_NAME = TITLE_GENERATION_CONFIG.modelName;
+const TITLE_MAX_LENGTH = TITLE_GENERATION_CONFIG.maxLength;
+const TITLE_MAX_WORDS = TITLE_GENERATION_CONFIG.maxWords;
 
 export function sanitizeTitle(raw: string | null | undefined): string | null {
 	if (!raw) return null;
@@ -91,28 +92,11 @@ export async function maybeGenerateConversationTitle(options: {
 			.join("\n");
 		const { text } = await generateText({
 			model: google(TITLE_MODEL_NAME),
-			maxOutputTokens: 64,
+			maxOutputTokens: TITLE_GENERATION_CONFIG.maxOutputTokens,
 			messages: [
 				{
 					role: "system",
-					content: `
-You are tasked with generating a concise, descriptive title for a chat conversation based on the initial messages. The title should:
-
-1. Be 2-6 words long
-2. Capture the main topic or question being discussed
-3. Be clear and specific
-4. Use title case (capitalize first letter of each major word)
-5. Not include quotation marks or special characters
-6. Be professional and appropriate
-
-Examples of good titles:
-- "Python Data Analysis Help"
-- "React Component Design"
-- "Travel Planning Italy"
-- "Budget Spreadsheet Formula"
-- "Career Change Advice"
-
-Generate a title that accurately represents what this conversation is about based on the messages provided. Respond with the title only.`,
+					content: TITLE_GENERATION_PROMPT,
 				},
 				{
 					role: "user",

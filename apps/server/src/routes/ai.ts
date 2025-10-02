@@ -16,6 +16,7 @@ import {
 	mergeHistoryWithIncoming,
 	resolveMessageId,
 } from "@/server/ai/messages";
+import { buildSystemPrompt } from "@/server/ai/prompts";
 import { maybeGenerateConversationTitle } from "@/server/ai/title-generation";
 import type { StoredUIMessage } from "@/server/lib/do";
 import {
@@ -157,24 +158,8 @@ aiRoutes.post("/", async (c) => {
 			metadata: m.metadata,
 		})) as Parameters<typeof convertToModelMessages>[0];
 
-		// Build system prompt based on available tools
-		const systemPrompt =
-			Object.keys(mcpTools).length > 0
-				? `You are a helpful AI assistant with access to external tools and documentation sources.
-
-IMPORTANT TOOL USAGE GUIDELINES:
-- When you have access to tools, USE THEM to provide accurate, up-to-date information
-- ALWAYS make multiple tool calls when needed to get complete information
-- For documentation queries, follow this workflow:
-  1. First call the resolve/search tool to find relevant libraries or resources
-  2. Then call the get/fetch tool with the results to retrieve detailed information
-  3. Finally, synthesize the information into a helpful response
-- Do NOT say you don't have information if you haven't tried using available tools
-- Continue making tool calls until you have enough information to answer fully
-- Only respond based on actual tool results, not assumptions
-
-Available capabilities: You have access to documentation search tools that can help answer questions about libraries, frameworks, and technical topics.`
-				: "You are a helpful AI assistant.";
+		// Build system prompt based on available tools and MCP servers
+		const systemPrompt = buildSystemPrompt(mcpTools, enabledMCPServers);
 
 		const result = streamText({
 			model,
@@ -198,12 +183,6 @@ Available capabilities: You have access to documentation search tools that can h
 					totalUsage?: LanguageModelUsage;
 				};
 			}) => {
-				console.log("[METADATA DEBUG] Part type:", part.type);
-				console.log(
-					"[METADATA DEBUG] Part object:",
-					JSON.stringify(part, null, 2),
-				);
-
 				// Add usage metadata for tracking
 				// Note: 'finish' parts use 'totalUsage', while 'finish-step' parts use 'usage'
 				const usageData = part.totalUsage || part.usage;
@@ -216,27 +195,11 @@ Available capabilities: You have access to documentation search tools that can h
 							: 0,
 						modelId,
 					};
-					console.log(
-						"[METADATA DEBUG] Returning metadata:",
-						JSON.stringify(metadata, null, 2),
-					);
 					return metadata;
 				}
-				console.log(
-					"[METADATA DEBUG] No metadata returned (conditions not met)",
-				);
 				return undefined;
 			},
 			async onFinish({ responseMessage }) {
-				console.log(
-					"[ONFINISH DEBUG] Response message metadata:",
-					JSON.stringify(responseMessage.metadata, null, 2),
-				);
-				console.log(
-					"[ONFINISH DEBUG] Response message keys:",
-					Object.keys(responseMessage),
-				);
-
 				// Save complete UIMessage to Durable Object (AI SDK v5 best practice)
 				const hasText =
 					extractMessageText(responseMessage)
@@ -278,11 +241,6 @@ Available capabilities: You have access to documentation search tools that can h
 					responseMessage.metadata?.usage ||
 					(responseMessage as unknown as { usage?: LanguageModelUsage }).usage;
 
-				console.log(
-					"[ONFINISH DEBUG] Extracted usage data:",
-					JSON.stringify(usageData, null, 2),
-				);
-
 				if (usageData) {
 					const cost =
 						responseMessage.metadata?.cost ||
@@ -290,33 +248,24 @@ Available capabilities: You have access to documentation search tools that can h
 							? calculateCost(usageData, modelDefinition.costPer1kTokens)
 							: 0);
 
-					console.log(
-						"[ONFINISH DEBUG] Recording usage - modelId:",
-						modelId,
-						"cost:",
-						cost,
-					);
-
 					await recordUsage(userId, {
 						modelId,
 						usage: usageData,
 						cost,
 						conversationId,
 					});
-
-					console.log("[ONFINISH DEBUG] Usage recorded successfully");
-				} else {
-					console.log(
-						"[ONFINISH DEBUG] No usage data found - skipping recordUsage",
-					);
 				}
 			},
 		});
 	} catch (err) {
 		if (err instanceof QuotaExceededError) {
+			const limitInfo =
+				err.limitType === "daily"
+					? "You've reached your daily message limit. Try again tomorrow or upgrade your plan."
+					: "You've reached your monthly message limit. Your usage will reset on the 1st of next month.";
 			return c.json(
 				{
-					error: err.message,
+					error: limitInfo,
 					limitType: err.limitType,
 				},
 				429,

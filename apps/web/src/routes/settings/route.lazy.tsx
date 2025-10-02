@@ -16,6 +16,7 @@ import {
 	SheetTitle,
 } from "@/web/components/ui/sheet";
 import { useIsMobile } from "@/web/hooks/use-mobile";
+import { useUserSettings } from "@/web/hooks/use-user-settings";
 import { authClient } from "@/web/lib/auth-client";
 import { SETTINGS_NAV_ITEMS } from "@/web/lib/constants";
 import { cn } from "@/web/utils/cn";
@@ -33,6 +34,9 @@ function SettingsLayout() {
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
 	const activePath = location.pathname ?? "";
+
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
 
 	const navigationItems = useMemo(() => {
 		return SETTINGS_NAV_ITEMS.map((item) => {
@@ -131,7 +135,14 @@ function SettingsLayout() {
 					</SheetContent>
 				</Sheet>
 			)}
-			<div className="mx-auto flex min-h-[calc(100svh-5rem-1.5rem)] w-full min-w-0 max-w-5xl gap-2 px-1 sm:gap-4 sm:px-0 md:min-h-[calc(100svh-5rem-0.5rem)]">
+			<div
+				className={cn(
+					"mx-auto flex min-h-[calc(100svh-5rem-1.5rem)] w-full min-w-0 gap-2 px-1 sm:gap-4 sm:px-0 md:min-h-[calc(100svh-5rem-0.5rem)]",
+					settingsQuery.data?.chatWidth === "comfortable"
+						? "max-w-full"
+						: "max-w-5xl",
+				)}
+			>
 				<aside className="relative hidden w-64 flex-shrink-0 md:block">
 					<div className="sticky top-[5rem] flex h-[calc(100svh-5rem-1.5rem)] flex-col overflow-hidden rounded-lg border bg-card p-3 shadow-sm sm:p-4 md:h-[calc(100svh-5rem-0.5rem)]">
 						<div className="mb-4">

@@ -12,40 +12,6 @@ import type { StoredUIMessage } from "@/server/lib/do";
 import migrations from "./migrations/migrations.js";
 import * as schema from "./schema/chat";
 
-function parseJsonArray(value: unknown): unknown[] {
-	if (Array.isArray(value)) {
-		return value;
-	}
-	if (typeof value === "string" && value.length > 0) {
-		try {
-			const parsed = JSON.parse(value);
-			return Array.isArray(parsed) ? parsed : [];
-		} catch (error) {
-			console.error("failed to parse json array", { value, error });
-			return [];
-		}
-	}
-	if (value == null) {
-		return [];
-	}
-	return [];
-}
-
-function parseJson<T>(value: unknown): T | null {
-	if (value == null) {
-		return null;
-	}
-	if (typeof value === "string" && value.length > 0) {
-		try {
-			return JSON.parse(value) as T;
-		} catch (error) {
-			console.error("failed to parse json value", { value, error });
-			return null;
-		}
-	}
-	return value as T;
-}
-
 export class UserDurableObject extends DurableObject<Env> {
 	private db: ReturnType<typeof drizzle>;
 	private userId: string;
@@ -222,12 +188,79 @@ export class UserDurableObject extends DurableObject<Env> {
 	}
 
 	// User Settings Management
+
+	/**
+	 * Migrates unencrypted API keys to encrypted format.
+	 * Only called during getUserSettings, never during updates.
+	 */
+	private async migrateApiKeysIfNeeded(
+		storedApiKeys: Record<string, string>,
+		encryptionKey: string,
+	): Promise<Record<string, string>> {
+		// Check if any keys are unencrypted
+		let needsMigration = false;
+		for (const key of Object.values(storedApiKeys)) {
+			if (key && !isEncrypted(key as string)) {
+				needsMigration = true;
+				break;
+			}
+		}
+
+		if (!needsMigration) {
+			// All encrypted, just decrypt and return
+			return await decryptApiKeys(storedApiKeys, encryptionKey, this.userId);
+		}
+
+		// Migration needed: collect all keys (encrypted and unencrypted)
+		console.log(`Migrating unencrypted API keys for user ${this.userId}`);
+		const plainKeys: Record<string, string> = {};
+
+		for (const [provider, key] of Object.entries(storedApiKeys)) {
+			if (!key) continue;
+
+			if (isEncrypted(key as string)) {
+				// Already encrypted, decrypt it
+				try {
+					plainKeys[provider] = await decryptApiKeys(
+						{ [provider]: key as string },
+						encryptionKey,
+						this.userId,
+					).then((result) => result[provider]);
+				} catch (error) {
+					console.error(`Failed to decrypt ${provider} key:`, error);
+				}
+			} else {
+				// Unencrypted, use as-is
+				plainKeys[provider] = key as string;
+			}
+		}
+
+		// Encrypt all keys
+		const encryptedKeys = await encryptApiKeys(
+			plainKeys,
+			encryptionKey,
+			this.userId,
+		);
+
+		// Save encrypted keys to DB (direct write, no recursion)
+		await this.db
+			.update(schema.userSettings)
+			.set({
+				apiKeys: JSON.stringify(encryptedKeys),
+				updated: new Date(),
+			})
+			.where(eq(schema.userSettings.userId, this.userId));
+
+		return plainKeys;
+	}
+
 	async getUserSettings(): Promise<{
 		selectedModel: string;
 		apiKeys: Record<string, string>;
 		enabledModels: string[];
 		enabledMcpServers: string[];
 		theme: string;
+		chatWidth: string;
 	}> {
 		const settings = await this.db
 			.select()
@@ -244,6 +277,7 @@ export class UserDurableObject extends DurableObject<Env> {
 				enabledModels: "[]",
 				enabledMcpServers: '["context7","cloudflare-docs"]',
 				theme: "system",
+				chatWidth: "cozy",
 				updated: new Date(),
 			};
 
@@ -255,15 +289,13 @@ export class UserDurableObject extends DurableObject<Env> {
 				enabledModels: [],
 				enabledMcpServers: JSON.parse(defaultSettings.enabledMcpServers),
 				theme: defaultSettings.theme,
+				chatWidth: defaultSettings.chatWidth,
 			};
 		}
 
-		// Parse API keys from storage
+		// Decrypt API keys (and migrate if needed)
 		const storedApiKeys = settings.apiKeys ? JSON.parse(settings.apiKeys) : {};
-
-		// Check if keys need migration (unencrypted -> encrypted)
 		let decryptedApiKeys: Record<string, string> = {};
-		let needsMigration = false;
 
 		const encryptionKey = this.env.API_ENCRYPTION_KEY;
 		if (!encryptionKey) {
@@ -272,46 +304,14 @@ export class UserDurableObject extends DurableObject<Env> {
 			);
 			decryptedApiKeys = storedApiKeys;
 		} else {
-			// Check if any keys are unencrypted
-			for (const [_provider, key] of Object.entries(storedApiKeys)) {
-				if (key && !isEncrypted(key as string)) {
-					needsMigration = true;
-					break;
-				}
-			}
-
-			if (needsMigration) {
-				// Migrate: re-encrypt unencrypted keys
-				console.log(`Migrating unencrypted API keys for user ${this.userId}`);
-				const migratedKeys: Record<string, string> = {};
-
-				for (const [provider, key] of Object.entries(storedApiKeys)) {
-					if (key && !isEncrypted(key as string)) {
-						// Key is unencrypted, encrypt it
-						migratedKeys[provider] = key as string;
-					} else if (key) {
-						// Key is already encrypted, keep as-is
-						migratedKeys[provider] = key as string;
-					}
-				}
-
-				// Re-save with encryption
-				await this.updateUserSettings({ apiKeys: migratedKeys });
-
-				// Decrypt for return
-				decryptedApiKeys = migratedKeys;
-			} else {
-				// All keys are encrypted, decrypt them
-				try {
-					decryptedApiKeys = await decryptApiKeys(
-						storedApiKeys,
-						encryptionKey,
-						this.userId,
-					);
-				} catch (error) {
-					console.error("Failed to decrypt API keys:", error);
-					decryptedApiKeys = {};
-				}
+			try {
+				decryptedApiKeys = await this.migrateApiKeysIfNeeded(
+					storedApiKeys,
+					encryptionKey,
+				);
+			} catch (error) {
+				console.error("Failed to decrypt/migrate API keys:", error);
+				decryptedApiKeys = {};
 			}
 		}
 
@@ -325,6 +325,7 @@ export class UserDurableObject extends DurableObject<Env> {
 				settings.enabledMcpServers || '["context7","cloudflare-docs"]',
 			),
 			theme: settings.theme || "system",
+			chatWidth: settings.chatWidth || "cozy",
 		};
 	}
 
@@ -334,53 +335,65 @@ export class UserDurableObject extends DurableObject<Env> {
 		enabledModels?: string[];
 		enabledMcpServers?: string[];
 		theme?: string;
+		chatWidth?: string;
 	}): Promise<void> {
-		const current = await this.getUserSettings();
-		const newSettings = { ...current, ...updates };
+		// Build the update object
+		const updateFields: Record<string, unknown> = {
+			updated: new Date(),
+		};
 
-		// Encrypt API keys before storing
-		let encryptedApiKeys = newSettings.apiKeys;
-		const encryptionKey = this.env.API_ENCRYPTION_KEY;
+		// Only read current settings if we need to merge API keys
+		if (updates.apiKeys !== undefined) {
+			// For API keys, we need to read current keys to merge
+			const current = await this.getUserSettings();
+			const mergedKeys = { ...current.apiKeys, ...updates.apiKeys };
 
-		if (encryptionKey && newSettings.apiKeys) {
-			try {
-				encryptedApiKeys = await encryptApiKeys(
-					newSettings.apiKeys,
-					encryptionKey,
-					this.userId,
+			// Encrypt the merged keys
+			const encryptionKey = this.env.API_ENCRYPTION_KEY;
+			if (encryptionKey) {
+				try {
+					const encryptedKeys = await encryptApiKeys(
+						mergedKeys,
+						encryptionKey,
+						this.userId,
+					);
+					updateFields.apiKeys = JSON.stringify(encryptedKeys);
+				} catch (error) {
+					console.error("Failed to encrypt API keys:", error);
+					throw new Error("Failed to encrypt API keys");
+				}
+			} else {
+				console.warn(
+					"API_ENCRYPTION_KEY not set - storing API keys without encryption",
 				);
-			} catch (error) {
-				console.error("Failed to encrypt API keys:", error);
-				throw new Error("Failed to encrypt API keys");
+				updateFields.apiKeys = JSON.stringify(mergedKeys);
 			}
-		} else if (!encryptionKey && newSettings.apiKeys) {
-			console.warn(
-				"API_ENCRYPTION_KEY not set - storing API keys without encryption",
-			);
 		}
 
+		// For all other fields, just update directly
+		if (updates.selectedModel !== undefined) {
+			updateFields.selectedModel = updates.selectedModel;
+		}
+		if (updates.enabledModels !== undefined) {
+			updateFields.enabledModels = JSON.stringify(updates.enabledModels);
+		}
+		if (updates.enabledMcpServers !== undefined) {
+			updateFields.enabledMcpServers = JSON.stringify(
+				updates.enabledMcpServers,
+			);
+		}
+		if (updates.theme !== undefined) {
+			updateFields.theme = updates.theme;
+		}
+		if (updates.chatWidth !== undefined) {
+			updateFields.chatWidth = updates.chatWidth;
+		}
+
+		// Perform the update
 		await this.db
-			.insert(schema.userSettings)
-			.values({
-				userId: this.userId,
-				selectedModel: newSettings.selectedModel,
-				apiKeys: JSON.stringify(encryptedApiKeys || {}),
-				enabledModels: JSON.stringify(newSettings.enabledModels),
-				enabledMcpServers: JSON.stringify(newSettings.enabledMcpServers),
-				theme: newSettings.theme,
-				updated: new Date(),
-			})
-			.onConflictDoUpdate({
-				target: schema.userSettings.userId,
-				set: {
-					selectedModel: newSettings.selectedModel,
-					apiKeys: JSON.stringify(encryptedApiKeys || {}),
-					enabledModels: JSON.stringify(newSettings.enabledModels),
-					enabledMcpServers: JSON.stringify(newSettings.enabledMcpServers),
-					theme: newSettings.theme,
-					updated: new Date(),
-				},
-			});
+			.update(schema.userSettings)
+			.set(updateFields)
+			.where(eq(schema.userSettings.userId, this.userId));
 	}
 
 	// Custom MCP Server Management

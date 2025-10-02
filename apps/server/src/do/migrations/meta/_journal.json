@@ -1,13 +1,13 @@
 {
-  "version": "7",
-  "dialect": "sqlite",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "6",
-      "when": 1759374920879,
-      "tag": "0000_futuristic_red_ghost",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "sqlite",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "6",
+			"when": 1759383155759,
+			"tag": "0000_brown_the_executioner",
+			"breakpoints": true
+		}
+	]
 }

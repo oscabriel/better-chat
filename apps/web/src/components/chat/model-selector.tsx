@@ -7,6 +7,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/web/components/ui/select";
+import { useUserSettings } from "@/web/hooks/use-user-settings";
 import { parseJsonResponse } from "@/web/utils/chat";
 
 interface ModelDefinition {
@@ -18,14 +19,6 @@ interface ModelDefinition {
 	capabilities: string[];
 	contextWindow: number;
 	maxOutputTokens?: number;
-}
-
-interface UserSettings {
-	selectedModel: string;
-	apiKeys: Record<string, string>;
-	enabledModels: string[];
-	enabledMcpServers: string[];
-	theme: string;
 }
 
 interface ModelSelectorProps {
@@ -49,17 +42,8 @@ export function ModelSelector({ modelId, onModelChange }: ModelSelectorProps) {
 		staleTime: 60_000,
 	});
 
-	// Fetch user settings
-	const settingsQuery = useQuery<UserSettings>({
-		queryKey: ["user", "settings"],
-		queryFn: async () => {
-			const response = await fetch(`${apiBase}/user/settings`, {
-				credentials: "include",
-			});
-			return parseJsonResponse<UserSettings>(response);
-		},
-		staleTime: 30_000,
-	});
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
 
 	const models = modelsQuery.data || [];
 	const userApiKeys = settingsQuery.data?.apiKeys || {};

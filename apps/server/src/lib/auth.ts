@@ -5,7 +5,7 @@ import { emailOTP } from "better-auth/plugins";
 import { Resend } from "resend";
 import { db } from "@/server/db";
 import * as schema from "@/server/db/schema/auth";
-import { EMAIL_FROM_ADDRESS, EMAIL_FROM_NAME } from "@/server/utils/constants";
+import { EMAIL_FROM_ADDRESS, EMAIL_FROM_NAME } from "@/server/lib/constants";
 import { renderVerificationCodeEmail } from "./email";
 
 export const auth = betterAuth({

@@ -8,7 +8,6 @@ import {
 	SettingsIcon,
 	UserLock,
 } from "lucide-react";
-import { useEffect } from "react";
 import { Button } from "@/web/components/ui/button";
 import {
 	DropdownMenu,
@@ -36,24 +35,9 @@ export default function UserMenu() {
 		select: (state) => state.isLoading,
 	});
 
-	// Cache user name in localStorage to prevent flash on refresh
-	useEffect(() => {
-		if (data?.user?.name) {
-			localStorage.setItem("cachedUserName", data.user.name);
-		}
-	}, [data?.user?.name]);
-
-	// Try to get cached name if session is still loading
-	const cachedName =
-		!data?.user?.name && !isCheckingSession
-			? localStorage.getItem("cachedUserName")
-			: null;
-
 	const displayFirstName = data?.user
 		? (getFirstName(data.user) ?? "User")
-		: cachedName
-			? (getFirstName({ name: cachedName }) ?? "User")
-			: null;
+		: null;
 
 	if (isCheckingSession && !displayFirstName) {
 		return (
@@ -63,14 +47,7 @@ export default function UserMenu() {
 		);
 	}
 
-	if (!data?.user && !cachedName) {
-		if (isCheckingSession && displayFirstName) {
-			return (
-				<Button variant="outline" size="sm" className="h-9 px-3" disabled>
-					<span className="font-semibold text-sm">{displayFirstName}</span>
-				</Button>
-			);
-		}
+	if (!data?.user) {
 		return (
 			<Button
 				variant="outline"
@@ -85,9 +62,6 @@ export default function UserMenu() {
 		await authClient.signOut({
 			fetchOptions: {
 				onSuccess: () => {
-					if (typeof window !== "undefined") {
-						localStorage.removeItem("cachedUserName");
-					}
 					navigate({ to: "/" });
 				},
 			},

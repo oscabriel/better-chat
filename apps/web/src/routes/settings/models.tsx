@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Crown, Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +11,10 @@ import {
 	CardTitle,
 } from "@/web/components/ui/card";
 import { Switch } from "@/web/components/ui/switch";
+import {
+	useUpdateUserSettings,
+	useUserSettings,
+} from "@/web/hooks/use-user-settings";
 import { parseJsonResponse } from "@/web/utils/chat";
 
 interface ModelDefinition {
@@ -28,21 +32,12 @@ interface ModelDefinition {
 	};
 }
 
-interface UserSettings {
-	selectedModel: string;
-	apiKeys: Record<string, string>;
-	enabledModels: string[];
-	enabledMcpServers: string[];
-	theme: string;
-}
-
 export const Route = createFileRoute("/settings/models")({
 	component: ModelSettings,
 });
 
 function ModelSettings() {
 	const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
-	const queryClient = useQueryClient();
 
 	// Fetch all models
 	const modelsQuery = useQuery<ModelDefinition[]>({
@@ -56,32 +51,17 @@ function ModelSettings() {
 		staleTime: 60_000,
 	});
 
-	// Fetch user settings
-	const settingsQuery = useQuery<UserSettings>({
-		queryKey: ["user", "settings"],
-		queryFn: async () => {
-			const response = await fetch(`${apiBase}/user/settings`, {
-				credentials: "include",
-			});
-			return parseJsonResponse<UserSettings>(response);
-		},
-		staleTime: 30_000,
-	});
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
+	const updateSettings = useUpdateUserSettings();
 
 	// Update enabled models
 	const updateEnabledModelsMutation = useMutation({
 		mutationFn: async (enabledModels: string[]) => {
-			const response = await fetch(`${apiBase}/user/settings`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				credentials: "include",
-				body: JSON.stringify({ enabledModels }),
-			});
-			if (!response.ok) throw new Error("Failed to update enabled models");
-			return parseJsonResponse(response);
+			return await updateSettings({ enabledModels });
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["user", "settings"] });
+			toast.success("Model settings updated");
 		},
 		onError: (error) => {
 			toast.error((error as Error).message);
@@ -139,8 +119,8 @@ function ModelSettings() {
 				<CardHeader>
 					<CardTitle>Model Management</CardTitle>
 					<CardDescription>
-						Toggle models to show or hide them in the model selector. Premium
-						models require API keys from the Providers page.
+						Basic models are built-in and always available. Toggle premium
+						models to show or hide them in the model selector.
 					</CardDescription>
 				</CardHeader>
 			</Card>
@@ -172,6 +152,7 @@ function ModelSettings() {
 								enabled={enabledModels.includes(model.id)}
 								onToggle={(enabled) => handleToggleModel(model.id, enabled)}
 								available={true}
+								isFreeModel={true}
 								formatCost={formatCost}
 								formatContext={formatContext}
 							/>
@@ -217,6 +198,7 @@ function ModelSettings() {
 									enabled={enabledModels.includes(model.id)}
 									onToggle={(enabled) => handleToggleModel(model.id, enabled)}
 									available={hasApiKey}
+									isFreeModel={false}
 									formatCost={formatCost}
 									formatContext={formatContext}
 								/>
@@ -234,6 +216,7 @@ function ModelRow({
 	enabled,
 	onToggle,
 	available,
+	isFreeModel,
 	formatCost,
 	formatContext,
 }: {
@@ -241,6 +224,7 @@ function ModelRow({
 	enabled: boolean;
 	onToggle: (enabled: boolean) => void;
 	available: boolean;
+	isFreeModel: boolean;
 	formatCost: (cost: { input: number; output: number }) => string;
 	formatContext: (contextWindow: number) => string;
 }) {
@@ -286,17 +270,23 @@ function ModelRow({
 				)}
 			</div>
 
-			<div className="flex items-center gap-2">
-				<Switch
-					checked={enabled}
-					onCheckedChange={onToggle}
-					disabled={!available}
-					aria-label={`Toggle ${model.name}`}
-				/>
-				<span className="text-muted-foreground text-xs">
-					{enabled ? "Shown" : "Hidden"}
-				</span>
-			</div>
+			{isFreeModel ? (
+				<Badge variant="secondary" className="text-xs">
+					Built-In
+				</Badge>
+			) : (
+				<div className="flex items-center gap-2">
+					<Switch
+						checked={enabled}
+						onCheckedChange={onToggle}
+						disabled={!available}
+						aria-label={`Toggle ${model.name}`}
+					/>
+					<span className="text-muted-foreground text-xs">
+						{enabled ? "Shown" : "Hidden"}
+					</span>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -33,5 +33,6 @@ CREATE TABLE `user_settings` (
 	`enabled_models` text DEFAULT '[]',
 	`enabled_mcp_servers` text DEFAULT '["context7","cloudflare-docs"]',
 	`theme` text DEFAULT 'system',
+	`chat_width` text DEFAULT 'cozy',
 	`updated` integer NOT NULL
 );

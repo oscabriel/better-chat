@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/web/components/ui/button";
 import {
 	Sheet,
@@ -11,6 +11,10 @@ import {
 	SheetTitle,
 } from "@/web/components/ui/sheet";
 import { useIsMobile } from "@/web/hooks/use-mobile";
+import {
+	useUpdateUserSettings,
+	useUserSettings,
+} from "@/web/hooks/use-user-settings";
 import { QUICK_PROMPTS } from "@/web/lib/constants";
 import type { ConversationListResponse } from "@/web/types/chat";
 import { generateConversationId, parseJsonResponse } from "@/web/utils/chat";
@@ -52,20 +56,9 @@ export function ChatShell() {
 		staleTime: 30_000,
 	});
 
-	const settingsQuery = useQuery<{
-		selectedModel: string;
-		apiKeys: Record<string, string>;
-	}>({
-		queryKey: ["user", "settings"],
-		queryFn: async () => {
-			const response = await fetch(`${apiBase}/user/settings`, {
-				credentials: "include",
-			});
-			return parseJsonResponse(response);
-		},
-		staleTime: 30_000,
-		refetchOnMount: false,
-	});
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
+	const updateSettings = useUpdateUserSettings();
 
 	const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
 		undefined,
@@ -76,6 +69,18 @@ export function ChatShell() {
 			setSelectedModelId(settingsQuery.data.selectedModel);
 		}
 	}, [selectedModelId, settingsQuery.data?.selectedModel]);
+
+	const handleModelChange = useCallback(
+		async (id: string) => {
+			setSelectedModelId(id);
+			try {
+				await updateSettings({ selectedModel: id });
+			} catch (_) {
+				// Ignore errors
+			}
+		},
+		[updateSettings],
+	);
 
 	// Listen for cross-tab sync events
 	useEffect(() => {
@@ -245,7 +250,14 @@ export function ChatShell() {
 					</SheetContent>
 				</Sheet>
 			)}
-			<div className="mx-auto flex min-h-[calc(100svh-5rem-1.5rem)] w-full min-w-0 max-w-5xl gap-2 px-1 sm:gap-4 sm:px-0 md:min-h-[calc(100svh-5rem-0.5rem)]">
+			<div
+				className={cn(
+					"mx-auto flex min-h-[calc(100svh-5rem-1.5rem)] w-full min-w-0 gap-2 px-1 sm:gap-4 sm:px-0 md:min-h-[calc(100svh-5rem-0.5rem)]",
+					settingsQuery.data?.chatWidth === "comfortable"
+						? "max-w-full"
+						: "max-w-5xl",
+				)}
+			>
 				<aside className="relative hidden w-64 flex-shrink-0 md:block">
 					<div className="sticky top-[5rem] flex h-[calc(100svh-5rem-1.5rem)] flex-col overflow-hidden rounded-lg border bg-card p-3 shadow-sm sm:p-4 md:h-[calc(100svh-5rem-0.5rem)]">
 						<div className="mb-4">
@@ -272,7 +284,7 @@ export function ChatShell() {
 						) : (
 							<div className="flex h-full flex-col overflow-hidden">
 								<div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-									<div className="mx-auto w-full max-w-3xl space-y-5 text-sm sm:text-base">
+									<div className="w-full space-y-5 text-sm sm:text-base">
 										<div>
 											<h2 className="mb-2 font-bold text-3xl">
 												How can I help you {getTimeOfDayLabel(new Date())}?
@@ -297,21 +309,11 @@ export function ChatShell() {
 									</div>
 								</div>
 								<div className="flex-shrink-0 border-t bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
-									<div className="mx-auto w-full max-w-3xl">
+									<div className="w-full">
 										<MessageInput
 											disabled={creatingConversation}
 											modelId={selectedModelId}
-											onModelChange={async (id) => {
-												setSelectedModelId(id);
-												try {
-													await fetch(`${apiBase}/user/settings`, {
-														method: "PUT",
-														headers: { "Content-Type": "application/json" },
-														credentials: "include",
-														body: JSON.stringify({ selectedModel: id }),
-													});
-												} catch (_) {}
-											}}
+											onModelChange={handleModelChange}
 											onSendMessage={handleStartNewChat}
 										/>
 									</div>

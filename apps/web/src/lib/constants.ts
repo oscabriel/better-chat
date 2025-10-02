@@ -56,24 +56,24 @@ export const MAX_MESSAGE_BATCH = 100;
 
 export const QUICK_PROMPTS: QuickPrompt[] = [
 	{
-		id: "prompt-typescript",
-		label: "Scaffold a new project with TypeScript",
-		text: "Scaffold a new full-stack TypeScript project for me. Include key libraries, project structure, and initial setup commands.",
+		id: "prompt-tanstack-router",
+		label: "Learn TanStack Router patterns",
+		text: "Using Tanstack Router, show me how to implement nested routes with loaders.",
 	},
 	{
-		id: "prompt-drizzle",
-		label: "Design a database schema with Drizzle",
-		text: "Design a Drizzle ORM schema for a multi-tenant SaaS app with users, organizations, and subscriptions.",
+		id: "prompt-alchemy",
+		label: "Create resources with Alchemy",
+		text: "Read the docs for Alchemy (/alchemy-run/alchemy). How do I create a D1 database and a Durable Object with it, then how do I use them in a project?",
 	},
 	{
-		id: "prompt-workers",
-		label: "Deploy an app to Cloudflare Workers",
-		text: "Walk me through deploying a React + Hono app to Cloudflare Workers, including wrangler configuration and deployment steps.",
+		id: "prompt-hono",
+		label: "Build API routes with Hono",
+		text: "Read the Hono docs. Build a REST API with middleware for authentication, rate limiting, and CORS handling.",
 	},
 	{
-		id: "prompt-auth",
-		label: "Add authentication with Better Auth",
-		text: "Explain how to integrate Better Auth into an existing React application, including server setup and client usage.",
+		id: "prompt-better-auth",
+		label: "Send magic links with Better Auth",
+		text: "How do I use better-auth to authenticate users with magic links?",
 	},
 ];
 
@@ -81,31 +81,31 @@ export const SETTINGS_NAV_ITEMS = [
 	{
 		to: "/settings/profile",
 		label: "Profile",
-		description: "Account details & sessions",
-	},
-	{
-		to: "/settings/providers",
-		label: "Providers",
-		description: "Manage API providers",
-	},
-	{
-		to: "/settings/models",
-		label: "Models",
-		description: "Default model preferences",
-	},
-	{
-		to: "/settings/tools",
-		label: "Tools",
-		description: "Workspace tool integrations",
-	},
-	{
-		to: "/settings/appearance",
-		label: "Appearance",
-		description: "Theme & UI density",
+		description: "View session details",
 	},
 	{
 		to: "/settings/usage",
 		label: "Usage",
-		description: "Quota & billing insights",
+		description: "Limit & token insights",
+	},
+	{
+		to: "/settings/providers",
+		label: "Providers",
+		description: "Manage provider API Keys",
+	},
+	{
+		to: "/settings/models",
+		label: "Models",
+		description: "Enable preferred models",
+	},
+	{
+		to: "/settings/tools",
+		label: "Tools",
+		description: "Manage tool integrations",
+	},
+	{
+		to: "/settings/appearance",
+		label: "Appearance",
+		description: "Change theme & UI density",
 	},
 ] as const;

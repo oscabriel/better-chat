@@ -137,7 +137,7 @@ export function SessionManager() {
 					No active sessions found.
 				</p>
 			) : (
-				<div className="space-y-2">
+				<div className="space-y-2 bg-background/60">
 					{validSessions.map((session, index) => {
 						const isCurrentSession =
 							session.token === currentUser?.session?.token;

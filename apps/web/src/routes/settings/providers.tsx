@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Key, Loader2, Shield } from "lucide-react";
 import { useId, useState } from "react";
@@ -21,15 +21,10 @@ import {
 } from "@/web/components/ui/dialog";
 import { Input } from "@/web/components/ui/input";
 import { Label } from "@/web/components/ui/label";
-import { parseJsonResponse } from "@/web/utils/chat";
-
-interface UserSettings {
-	selectedModel: string;
-	apiKeys: Record<string, string>;
-	enabledModels: string[];
-	enabledMcpServers: string[];
-	theme: string;
-}
+import {
+	useUpdateUserSettings,
+	useUserSettings,
+} from "@/web/hooks/use-user-settings";
 
 interface Provider {
 	id: string;
@@ -70,7 +65,6 @@ export const Route = createFileRoute("/settings/providers")({
 });
 
 function ProviderSettings() {
-	const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
 	const queryClient = useQueryClient();
 	const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
 	const [selectedProvider, setSelectedProvider] = useState<Provider | null>(
@@ -79,34 +73,18 @@ function ProviderSettings() {
 	const [apiKeyInput, setApiKeyInput] = useState("");
 	const id = useId();
 
-	// Fetch user settings
-	const settingsQuery = useQuery<UserSettings>({
-		queryKey: ["user", "settings"],
-		queryFn: async () => {
-			const response = await fetch(`${apiBase}/user/settings`, {
-				credentials: "include",
-			});
-			return parseJsonResponse<UserSettings>(response);
-		},
-		staleTime: 30_000,
-	});
+	// Use shared settings hook
+	const settingsQuery = useUserSettings();
+	const updateSettings = useUpdateUserSettings();
 
 	// Update API keys
 	const updateApiKeysMutation = useMutation({
 		mutationFn: async (updates: { provider: string; apiKey: string }) => {
 			const currentKeys = settingsQuery.data?.apiKeys || {};
 			const newKeys = { ...currentKeys, [updates.provider]: updates.apiKey };
-			const response = await fetch(`${apiBase}/user/settings`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				credentials: "include",
-				body: JSON.stringify({ apiKeys: newKeys }),
-			});
-			if (!response.ok) throw new Error("Failed to update API key");
-			return parseJsonResponse(response);
+			return await updateSettings({ apiKeys: newKeys });
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["user", "settings"] });
 			queryClient.invalidateQueries({ queryKey: ["models", "available"] });
 			toast.success("API key saved successfully");
 			setShowApiKeyDialog(false);
@@ -206,7 +184,7 @@ function ProviderSettings() {
 									)}
 								</div>
 								<Button
-									variant={hasUserKey ? "outline" : "secondary"}
+									variant={hasUserKey ? "outline" : "default"}
 									size="sm"
 									onClick={() => openApiKeyDialog(provider)}
 								>
@@ -273,7 +251,7 @@ function ProviderSettings() {
 									onClick={() => openApiKeyDialog(provider)}
 								>
 									<Key className="mr-2 h-4 w-4" />
-									{hasUserKey ? "Update API Key" : "Add API Key"}
+									{hasUserKey ? "Update API Key" : "Add Your API Key"}
 								</Button>
 							</div>
 						);
