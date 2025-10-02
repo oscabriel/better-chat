@@ -1,19 +1,19 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { GuestPending } from "@/web/components/page-skeleton";
+import { GuestShellSkeleton } from "@/web/components/guest-skeleton";
 import { Button } from "@/web/components/ui/button";
 import { authClient } from "@/web/lib/auth-client";
 import { APP_DESCRIPTIONS, APP_TITLE_ASCII } from "@/web/lib/constants";
 
 export const Route = createFileRoute("/")({
 	component: GuestRoute,
-	pendingComponent: GuestPending,
+	pendingComponent: GuestShellSkeleton,
 });
 
 function GuestRoute() {
 	const { data: session, isPending } = authClient.useSession();
 
 	if (isPending) {
-		return null;
+		return <GuestShellSkeleton />;
 	}
 
 	if (session?.user) {
@@ -27,7 +27,7 @@ function GuestLanding() {
 	return (
 		<div className="min-h-screen bg-background px-4 pt-20">
 			<div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-10 text-center">
-				<pre className="overflow-x-auto font-mono text-[0.5rem] text-muted-foreground sm:text-xs md:text-sm">
+				<pre className="overflow-x-auto font-mono text-[0.5rem] sm:text-xs md:text-sm">
 					{APP_TITLE_ASCII}
 				</pre>
 				<div className="space-y-4">
@@ -42,7 +42,7 @@ function GuestLanding() {
 				</div>
 				<div className="flex flex-wrap items-center justify-center gap-3">
 					<Button asChild size="lg">
-						<Link to="/auth/sign-in">Sign in to get started</Link>
+						<Link to="/auth/sign-in">Get started</Link>
 					</Button>
 					<Button asChild variant="outline" size="lg">
 						<a

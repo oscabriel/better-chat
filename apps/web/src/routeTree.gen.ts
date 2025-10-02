@@ -15,7 +15,6 @@ import { Route as PolicyRouteImport } from './routes/policy'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ChatRouteRouteImport } from './routes/chat/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ChatIndexRouteImport } from './routes/chat/index'
 import { Route as SettingsUsageRouteImport } from './routes/settings/usage'
 import { Route as SettingsToolsRouteImport } from './routes/settings/tools'
 import { Route as SettingsProvidersRouteImport } from './routes/settings/providers'
@@ -53,11 +52,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ChatIndexRoute = ChatIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ChatRouteRoute,
 } as any)
 const SettingsUsageRoute = SettingsUsageRouteImport.update({
   id: '/usage',
@@ -114,10 +108,10 @@ export interface FileRoutesByFullPath {
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/tools': typeof SettingsToolsRoute
   '/settings/usage': typeof SettingsUsageRoute
-  '/chat/': typeof ChatIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRouteRouteWithChildren
   '/docs': typeof DocsRoute
   '/policy': typeof PolicyRoute
   '/settings': typeof SettingsRouteLazyRouteWithChildren
@@ -129,7 +123,6 @@ export interface FileRoutesByTo {
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/tools': typeof SettingsToolsRoute
   '/settings/usage': typeof SettingsUsageRoute
-  '/chat': typeof ChatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -146,7 +139,6 @@ export interface FileRoutesById {
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/tools': typeof SettingsToolsRoute
   '/settings/usage': typeof SettingsUsageRoute
-  '/chat/': typeof ChatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -164,10 +156,10 @@ export interface FileRouteTypes {
     | '/settings/providers'
     | '/settings/tools'
     | '/settings/usage'
-    | '/chat/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/chat'
     | '/docs'
     | '/policy'
     | '/settings'
@@ -179,7 +171,6 @@ export interface FileRouteTypes {
     | '/settings/providers'
     | '/settings/tools'
     | '/settings/usage'
-    | '/chat'
   id:
     | '__root__'
     | '/'
@@ -195,7 +186,6 @@ export interface FileRouteTypes {
     | '/settings/providers'
     | '/settings/tools'
     | '/settings/usage'
-    | '/chat/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -243,13 +233,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/chat/': {
-      id: '/chat/'
-      path: '/'
-      fullPath: '/chat/'
-      preLoaderRoute: typeof ChatIndexRouteImport
-      parentRoute: typeof ChatRouteRoute
     }
     '/settings/usage': {
       id: '/settings/usage'
@@ -312,12 +295,10 @@ declare module '@tanstack/react-router' {
 
 interface ChatRouteRouteChildren {
   ChatChatIdRoute: typeof ChatChatIdRoute
-  ChatIndexRoute: typeof ChatIndexRoute
 }
 
 const ChatRouteRouteChildren: ChatRouteRouteChildren = {
   ChatChatIdRoute: ChatChatIdRoute,
-  ChatIndexRoute: ChatIndexRoute,
 }
 
 const ChatRouteRouteWithChildren = ChatRouteRoute._addFileChildren(

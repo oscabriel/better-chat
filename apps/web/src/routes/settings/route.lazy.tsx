@@ -7,7 +7,7 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { SettingsPending } from "@/web/components/page-skeleton";
+import { AppShellSkeleton } from "@/web/components/app-skeleton";
 import {
 	Sheet,
 	SheetContent,
@@ -23,7 +23,7 @@ import { cn } from "@/web/utils/cn";
 
 export const Route = createLazyFileRoute("/settings")({
 	component: SettingsLayout,
-	pendingComponent: SettingsPending,
+	pendingComponent: AppShellSkeleton,
 });
 
 function SettingsLayout() {
@@ -73,7 +73,7 @@ function SettingsLayout() {
 	}, [isMobile]);
 
 	if (isPending) {
-		return <SettingsPending />;
+		return <AppShellSkeleton />;
 	}
 
 	if (!session?.user) {

@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { SignInPending } from "@/web/components/page-skeleton";
 import { authClient } from "@/web/lib/auth-client";
+import { SignInShellSkeleton } from "@/web/routes/auth/-components/sign-in-skeleton";
 import { SignInForm } from "./-components/sign-in-form";
 
 interface SignInSearch {
@@ -11,7 +11,7 @@ const FALLBACK_REDIRECT = "/chat";
 
 export const Route = createFileRoute("/auth/sign-in")({
 	component: SignInRoute,
-	pendingComponent: SignInPending,
+	pendingComponent: SignInShellSkeleton,
 });
 
 function sanitizeRedirect(rawRedirect: string | undefined) {
@@ -38,7 +38,7 @@ function SignInRoute() {
 	if (isPending) {
 		return (
 			<div className="container mx-auto w-full min-w-0 max-w-[90vw] px-3 py-2 sm:max-w-2xl sm:px-4 md:max-w-3xl">
-				<SignInPending />
+				<SignInShellSkeleton />
 			</div>
 		);
 	}

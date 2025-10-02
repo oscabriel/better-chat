@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DocsPending } from "@/web/components/page-skeleton";
 import { Button } from "@/web/components/ui/button";
 import {
 	Card,
@@ -10,7 +9,6 @@ import {
 
 export const Route = createFileRoute("/docs")({
 	component: DocsRoute,
-	pendingComponent: DocsPending,
 });
 
 function DocsRoute() {

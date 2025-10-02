@@ -6,9 +6,7 @@ import { ChevronDown, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useStickToBottom } from "use-stick-to-bottom";
-import { MessageInput } from "@/web/components/chat/message-input";
-import { MessageRenderer } from "@/web/components/chat/message-renderer";
-import { ChatPending } from "@/web/components/page-skeleton";
+import { AppShellSkeleton } from "@/web/components/app-skeleton";
 import { Button } from "@/web/components/ui/button";
 import { Card } from "@/web/components/ui/card";
 import {
@@ -16,6 +14,8 @@ import {
 	useUserSettings,
 } from "@/web/hooks/use-user-settings";
 import { MAX_MESSAGE_BATCH } from "@/web/lib/constants";
+import { MessageInput } from "@/web/routes/chat/-components/message-input";
+import { MessageRenderer } from "@/web/routes/chat/-components/message-renderer";
 import type {
 	ConversationSummary,
 	MessageListResponse,
@@ -25,7 +25,7 @@ import { broadcastSync } from "@/web/utils/sync";
 
 export const Route = createFileRoute("/chat/$chatId")({
 	component: ChatPage,
-	pendingComponent: ChatPending,
+	pendingComponent: AppShellSkeleton,
 	loader: async ({ params }) => {
 		const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
 		const { chatId } = params;
@@ -311,11 +311,6 @@ function ChatPage() {
 
 		return true;
 	}, [messages, status]);
-
-	// Show loading state on initial fetch
-	if (messagesQuery.isInitialLoading) {
-		return <ChatPending />;
-	}
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">

@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PolicyPending } from "@/web/components/page-skeleton";
 import {
 	Card,
 	CardContent,
@@ -9,7 +8,6 @@ import {
 
 export const Route = createFileRoute("/policy")({
 	component: PolicyRoute,
-	pendingComponent: PolicyPending,
 });
 
 function PolicyRoute() {

@@ -5,13 +5,13 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ChatShell } from "@/web/components/chat/chat-shell";
-import { ChatPending } from "@/web/components/page-skeleton";
+import { AppShellSkeleton } from "@/web/components/app-skeleton";
 import { authClient } from "@/web/lib/auth-client";
+import { ChatShell } from "@/web/routes/chat/-components/chat-shell";
 
 export const Route = createFileRoute("/chat")({
 	component: ChatLayout,
-	pendingComponent: ChatPending,
+	pendingComponent: AppShellSkeleton,
 });
 
 function ChatLayout() {
@@ -27,7 +27,7 @@ function ChatLayout() {
 	}, [location.pathname, navigate]);
 
 	if (isPending) {
-		return <ChatPending />;
+		return <AppShellSkeleton />;
 	}
 
 	if (!session?.user) {
