@@ -182,8 +182,8 @@ export const CodeBlock = memo(
 					// Inline code styling - consistent with code blocks
 					"not-prose",
 					"font-medium font-mono text-sm leading-normal",
-					"border border-primary/20 bg-primary/10",
-					"px-0.5",
+					"border border-primary/40 bg-primary/20",
+					"px-1 py-0.75",
 					"text-foreground",
 				)}
 				{...props}

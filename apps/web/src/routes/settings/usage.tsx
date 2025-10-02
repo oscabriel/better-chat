@@ -161,7 +161,7 @@ function UsageSettings() {
 		return () => {
 			cleanup?.();
 		};
-	}, [queryClient]);
+	}, []);
 
 	// Helper to get display name for a model ID
 	const getModelDisplayName = (modelId: string): string => {

@@ -34,7 +34,7 @@ export function SignInForm({ redirectPath }: SignInFormProps) {
 				replace: true,
 			});
 		}
-	}, [session?.user, isPending, navigate, redirectPath]);
+	}, [session?.user, isPending]);
 
 	const sendOtpMutation = useMutation({
 		mutationFn: async (email: string) => {

@@ -2,9 +2,10 @@ import { useChat } from "@ai-sdk/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useStickToBottom } from "use-stick-to-bottom";
 import { MessageInput } from "@/web/components/chat/message-input";
 import { MessageRenderer } from "@/web/components/chat/message-renderer";
 import { ChatPending } from "@/web/components/page-skeleton";
@@ -52,8 +53,12 @@ function ChatPage() {
 	const queryClient = useQueryClient();
 	const [pendingText, setPendingText] = useState<string | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const initializedChatId = useRef<string | null>(null);
+	const { scrollRef, contentRef, isAtBottom, scrollToBottom } =
+		useStickToBottom({
+			initial: "instant",
+			resize: "instant",
+		});
 
 	const messagesQuery = useQuery<MessageListResponse>({
 		queryKey: ["chat", "messages", chatId],
@@ -154,8 +159,15 @@ function ChatPage() {
 		) {
 			setMessages(messagesQuery.data.items);
 			initializedChatId.current = chatId;
+			void scrollToBottom({ animation: "instant" });
 		}
-	}, [chatId, messagesQuery.data?.items, messagesQuery.isLoading, setMessages]);
+	}, [
+		chatId,
+		messagesQuery.data?.items,
+		messagesQuery.isLoading,
+		scrollToBottom,
+		setMessages,
+	]);
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -207,12 +219,6 @@ function ChatPage() {
 		chatId,
 	]);
 
-	// Scroll to bottom when messages change
-	// biome-ignore lint/correctness/useExhaustiveDependencies: We intentionally want to scroll when messages array changes
-	useEffect(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages]);
-
 	const handleDeleteConversation = async () => {
 		if (isDeleting) return;
 		setIsDeleting(true);
@@ -254,6 +260,58 @@ function ChatPage() {
 		(conversationQuery.data as ConversationSummary)?.title?.trim() ||
 		"New chat";
 
+	const shouldShowStreamingIndicator = useMemo(() => {
+		if (status !== "streaming") {
+			return false;
+		}
+
+		let latestAssistantMessage: (typeof messages)[number] | undefined;
+		for (let index = messages.length - 1; index >= 0; index -= 1) {
+			const candidate = messages[index];
+			if (candidate?.role === "assistant") {
+				latestAssistantMessage = candidate;
+				break;
+			}
+		}
+
+		if (!latestAssistantMessage) {
+			return true;
+		}
+
+		const parts =
+			(latestAssistantMessage as { parts?: unknown[] })?.parts ?? [];
+
+		for (const part of parts) {
+			const partRecord = (part ?? {}) as Record<string, unknown>;
+			const partType =
+				typeof partRecord.type === "string" ? (partRecord.type as string) : "";
+
+			if (partType.startsWith("reasoning")) {
+				continue;
+			}
+
+			const delta =
+				typeof partRecord.delta === "string"
+					? (partRecord.delta as string).trim()
+					: "";
+			const text =
+				typeof partRecord.text === "string"
+					? (partRecord.text as string).trim()
+					: "";
+			const content = delta || text;
+
+			if (content.length > 0) {
+				return false;
+			}
+
+			if (partType && partType !== "text") {
+				return false;
+			}
+		}
+
+		return true;
+	}, [messages, status]);
+
 	// Show loading state on initial fetch
 	if (messagesQuery.isInitialLoading) {
 		return <ChatPending />;
@@ -279,16 +337,28 @@ function ChatPage() {
 					</div>
 				</div>
 			</div>
-			<div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-				<div className="w-full space-y-4">
+			<div
+				className="relative flex-1 overflow-y-auto px-3 py-4 sm:px-6"
+				ref={scrollRef}
+			>
+				<div ref={contentRef} className="w-full space-y-4 pb-10">
 					{messages.map((message) => (
 						<MessageRenderer key={message.id} message={message} />
 					))}
-					{status === "streaming" && (
+					{shouldShowStreamingIndicator && (
 						<div className="flex justify-start">
-							<Card className="max-w-[80%] gap-2 py-2">
+							<Card
+								className="max-w-[80%] gap-2 py-2"
+								role="status"
+								aria-live="polite"
+							>
 								<div className="px-3 py-2">
-									<p className="text-muted-foreground text-sm">Thinking...</p>
+									<span className="block animate-pulse text-muted-foreground text-xl leading-none">
+										...
+									</span>
+									<span className="sr-only">
+										Assistant is preparing a response
+									</span>
 								</div>
 							</Card>
 						</div>
@@ -304,8 +374,22 @@ function ChatPage() {
 							</Card>
 						</div>
 					)}
-					<div ref={messagesEndRef} />
 				</div>
+				{!isAtBottom && (
+					<div className="pointer-events-none sticky bottom-4 flex justify-center pr-2">
+						<Button
+							variant="secondary"
+							size="icon"
+							className="pointer-events-auto shadow"
+							onClick={() => {
+								void scrollToBottom();
+							}}
+							aria-label="Scroll to latest message"
+						>
+							<ChevronDown className="h-4 w-4" />
+						</Button>
+					</div>
+				)}
 			</div>
 			<div className="flex-shrink-0 border-t bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
 				<div className="w-full">
@@ -313,7 +397,10 @@ function ChatPage() {
 						disabled={status === "streaming"}
 						modelId={selectedModelId}
 						onModelChange={handleModelChange}
-						onSendMessage={({ text }) => sendMessage({ text })}
+						onSendMessage={({ text }) => {
+							void scrollToBottom({ animation: "instant" });
+							sendMessage({ text });
+						}}
 					/>
 				</div>
 			</div>

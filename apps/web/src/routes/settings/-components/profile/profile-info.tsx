@@ -67,7 +67,6 @@ export function ProfileInfo() {
 	});
 
 	// Update form when user data changes or dialog opens
-	// biome-ignore lint/correctness/useExhaustiveDependencies: false positive
 	React.useEffect(() => {
 		if (user.data && isEditOpen) {
 			form.setFieldValue("name", user.data.name || "");
@@ -75,7 +74,6 @@ export function ProfileInfo() {
 	}, [user.data, isEditOpen]);
 
 	// Reset form when dialog closes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: false positive
 	React.useEffect(() => {
 		if (!isEditOpen) {
 			form.reset();

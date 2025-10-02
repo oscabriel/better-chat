@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/web/components/ui/button";
 import {
 	Sheet,
@@ -64,15 +64,25 @@ export function ChatShell() {
 		undefined,
 	);
 
+	const lastSavedModelRef = useRef<string | undefined>(undefined);
+	const isInitializedRef = useRef(false);
+
 	useEffect(() => {
-		if (!selectedModelId && settingsQuery.data?.selectedModel) {
+		if (!isInitializedRef.current && settingsQuery.data?.selectedModel) {
 			setSelectedModelId(settingsQuery.data.selectedModel);
+			lastSavedModelRef.current = settingsQuery.data.selectedModel;
+			isInitializedRef.current = true;
 		}
 	}, [selectedModelId, settingsQuery.data?.selectedModel]);
 
 	const handleModelChange = useCallback(
 		async (id: string) => {
+			// Prevent infinite loops; only update if actually changed
+			if (id === lastSavedModelRef.current) {
+				return;
+			}
 			setSelectedModelId(id);
+			lastSavedModelRef.current = id;
 			try {
 				await updateSettings({ selectedModel: id });
 			} catch (_) {
@@ -100,7 +110,7 @@ export function ChatShell() {
 		return () => {
 			cleanup?.();
 		};
-	}, [queryClient]);
+	}, []);
 
 	const selectedConversationId = useMemo(() => {
 		const pathname = location.pathname ?? "";

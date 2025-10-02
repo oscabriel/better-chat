@@ -72,6 +72,6 @@ export function useUpdateUserSettings() {
 
 			return updated;
 		},
-		[queryClient, userId],
+		[apiBase, queryClient, userId],
 	);
 }
