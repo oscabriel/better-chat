@@ -1,20 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useRouterState, Outlet } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/web/components/ui/button";
-import { Sheet, SheetContent } from "@/web/components/ui/sheet";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+} from "@/web/components/ui/sheet";
 import { useIsMobile } from "@/web/hooks/use-mobile";
 import { QUICK_PROMPTS } from "@/web/lib/constants";
 import type { ConversationListResponse } from "@/web/types/chat";
 import { generateConversationId, parseJsonResponse } from "@/web/utils/chat";
 import { cn } from "@/web/utils/cn";
-import { formatDistanceToNowStrict } from "@/web/utils/date";
+import { formatDistanceToNowStrict, getTimeOfDayLabel } from "@/web/utils/date";
+import { onSyncEvent } from "@/web/utils/sync";
 import { MessageInput } from "./message-input";
 
 export function ChatShell() {
 	const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const location = useRouterState({ select: (state) => state.location });
 	const isMobile = useIsMobile();
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -43,6 +51,51 @@ export function ChatShell() {
 		},
 		staleTime: 30_000,
 	});
+
+	const settingsQuery = useQuery<{
+		selectedModel: string;
+		apiKeys: Record<string, string>;
+	}>({
+		queryKey: ["user", "settings"],
+		queryFn: async () => {
+			const response = await fetch(`${apiBase}/user/settings`, {
+				credentials: "include",
+			});
+			return parseJsonResponse(response);
+		},
+		staleTime: 30_000,
+		refetchOnMount: false,
+	});
+
+	const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
+		undefined,
+	);
+
+	useEffect(() => {
+		if (!selectedModelId && settingsQuery.data?.selectedModel) {
+			setSelectedModelId(settingsQuery.data.selectedModel);
+		}
+	}, [selectedModelId, settingsQuery.data?.selectedModel]);
+
+	// Listen for cross-tab sync events
+	useEffect(() => {
+		const cleanup = onSyncEvent((event) => {
+			if (event.type === "conversations-list-changed") {
+				queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+			} else if (event.type === "conversation-changed") {
+				queryClient.invalidateQueries({
+					queryKey: ["chat", "conversation", event.chatId],
+				});
+				queryClient.invalidateQueries({
+					queryKey: ["chat", "messages", event.chatId],
+				});
+			}
+		});
+
+		return () => {
+			cleanup?.();
+		};
+	}, [queryClient]);
 
 	const selectedConversationId = useMemo(() => {
 		const pathname = location.pathname ?? "";
@@ -160,6 +213,38 @@ export function ChatShell() {
 
 	return (
 		<div className="max-w-[100vw] overflow-x-hidden bg-background px-2 pt-20 sm:px-4">
+			{isMobile && (
+				<Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+					<SheetContent
+						side="left"
+						className="w-[min(90vw,18rem)] border-r-0 p-0 sm:max-w-xs"
+					>
+						<SheetHeader className="sr-only">
+							<SheetTitle>Chat History</SheetTitle>
+							<SheetDescription>
+								Navigate between your conversations.
+							</SheetDescription>
+						</SheetHeader>
+						<div className="flex h-full flex-col gap-4 overflow-hidden bg-card p-4">
+							<div className="space-y-3">
+								<h2 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+									Chat History
+								</h2>
+								<Button
+									onClick={startNewConversation}
+									size="sm"
+									className="w-full gap-2"
+								>
+									<Plus className="h-4 w-4" /> New Chat
+								</Button>
+							</div>
+							<div className="-mx-1 flex-1 overflow-y-auto px-1">
+								{getConversationList(handleSelectConversation)}
+							</div>
+						</div>
+					</SheetContent>
+				</Sheet>
+			)}
 			<div className="mx-auto flex min-h-[calc(100svh-5rem-1.5rem)] w-full min-w-0 max-w-5xl gap-2 px-1 sm:gap-4 sm:px-0 md:min-h-[calc(100svh-5rem-0.5rem)]">
 				<aside className="relative hidden w-64 flex-shrink-0 md:block">
 					<div className="sticky top-[5rem] flex h-[calc(100svh-5rem-1.5rem)] flex-col overflow-hidden rounded-lg border bg-card p-3 shadow-sm sm:p-4 md:h-[calc(100svh-5rem-0.5rem)]">
@@ -190,7 +275,7 @@ export function ChatShell() {
 									<div className="mx-auto w-full max-w-3xl space-y-5 text-sm sm:text-base">
 										<div>
 											<h2 className="mb-2 font-bold text-3xl">
-												What can I help you with?
+												How can I help you {getTimeOfDayLabel(new Date())}?
 											</h2>
 										</div>
 										<div className="flex flex-col items-start space-y-3">
@@ -215,6 +300,18 @@ export function ChatShell() {
 									<div className="mx-auto w-full max-w-3xl">
 										<MessageInput
 											disabled={creatingConversation}
+											modelId={selectedModelId}
+											onModelChange={async (id) => {
+												setSelectedModelId(id);
+												try {
+													await fetch(`${apiBase}/user/settings`, {
+														method: "PUT",
+														headers: { "Content-Type": "application/json" },
+														credentials: "include",
+														body: JSON.stringify({ selectedModel: id }),
+													});
+												} catch (_) {}
+											}}
 											onSendMessage={handleStartNewChat}
 										/>
 									</div>

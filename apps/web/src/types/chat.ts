@@ -1,3 +1,5 @@
+import type { UIMessage } from "ai";
+
 /**
  * Shared chat-related types used across the application
  */
@@ -15,41 +17,12 @@ export type ConversationListResponse = {
 	items: ConversationSummary[];
 };
 
-export type MessagePart = {
-	type: string;
-	text?: string;
-	state?: string;
-	[key: string]: unknown;
-};
-
-export type StoredMessage = {
-	id: string;
-	role: string;
-	parts: MessagePart[];
-	reasoning: MessagePart[];
-	toolCalls: MessagePart[];
-	toolResults: MessagePart[];
-	error: MessagePart[] | null;
-	created: number | string;
-};
-
+/**
+ * MessageListResponse now returns UIMessage[] directly (AI SDK v5 format)
+ */
 export type MessageListResponse = {
-	items: StoredMessage[];
+	items: UIMessage[];
 	nextCursor: number | null;
-};
-
-export type EnrichedMessage = {
-	id: string;
-	role: "user" | "assistant" | "system";
-	parts: MessagePart[];
-	created: number;
-};
-
-export type MaybeEnrichedMessage = {
-	id: string;
-	role: string;
-	parts?: MessagePart[];
-	created?: number;
 };
 
 export type QuickPrompt = {

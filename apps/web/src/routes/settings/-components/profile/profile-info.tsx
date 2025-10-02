@@ -67,18 +67,20 @@ export function ProfileInfo() {
 	});
 
 	// Update form when user data changes or dialog opens
+	// biome-ignore lint/correctness/useExhaustiveDependencies: false positive
 	React.useEffect(() => {
 		if (user.data && isEditOpen) {
 			form.setFieldValue("name", user.data.name || "");
 		}
-	}, [user.data, isEditOpen, form]);
+	}, [user.data, isEditOpen]);
 
 	// Reset form when dialog closes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: false positive
 	React.useEffect(() => {
 		if (!isEditOpen) {
 			form.reset();
 		}
-	}, [isEditOpen, form]);
+	}, [isEditOpen]);
 
 	if (user.isLoading) return <div>Loading...</div>;
 	if (user.error) return <div>Error loading profile</div>;
@@ -157,17 +159,13 @@ export function ProfileInfo() {
 
 								<div className="flex justify-end space-x-2">
 									<Button
-										type="button"
 										variant="outline"
 										onClick={() => setIsEditOpen(false)}
 										disabled={updateProfileMutation.isPending}
 									>
 										Cancel
 									</Button>
-									<Button
-										type="submit"
-										disabled={updateProfileMutation.isPending}
-									>
+									<Button disabled={updateProfileMutation.isPending}>
 										{updateProfileMutation.isPending
 											? "Saving..."
 											: "Save Changes"}

@@ -166,7 +166,7 @@ export const CodeBlock = memo(
 				</div>
 
 				<div
-					// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki!!
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki is safe
 					dangerouslySetInnerHTML={{ __html: highlightedCode }}
 					className="code-block-content pl-2 font-mono text-sm leading-normal"
 				/>
@@ -180,6 +180,7 @@ export const CodeBlock = memo(
 				className={cn(
 					className,
 					// Inline code styling - consistent with code blocks
+					"not-prose",
 					"font-medium font-mono text-sm leading-normal",
 					"border border-primary/20 bg-primary/10",
 					"px-0.5",

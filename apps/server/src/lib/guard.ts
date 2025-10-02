@@ -21,3 +21,9 @@ export async function requireUserDO(c: HonoContext) {
 	const stub = getUserDOStub(c.env, session.user.id);
 	return { userId: session.user.id, stub } as const;
 }
+
+export async function requireUserId(c: HonoContext) {
+	const session = await auth.api.getSession({ headers: c.req.raw.headers });
+	if (!session) throw new UnauthorizedError();
+	return session.user.id;
+}

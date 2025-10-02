@@ -82,8 +82,21 @@ function SidebarProvider({
 			}
 
 			// This sets the cookie to keep the sidebar state.
-			// biome-ignore lint/suspicious/noDocumentCookie: it's fine
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+			if (typeof window !== "undefined") {
+				if ("cookieStore" in window) {
+					// Use Cookie Store API if available
+					void window.cookieStore.set({
+						name: SIDEBAR_COOKIE_NAME,
+						value: String(openState),
+						path: "/",
+						expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
+					});
+				} else {
+					// Fallback to document.cookie
+					// biome-ignore lint/suspicious/noDocumentCookie: Cookie Store API not available
+					document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+				}
+			}
 		},
 		[setOpenProp, open],
 	);

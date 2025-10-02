@@ -9,6 +9,10 @@ import { createContext } from "./lib/context";
 import { appRouter } from "./routers";
 import { aiRoutes } from "./routes/ai";
 import { chatRoutes } from "./routes/chat";
+import { mcpManagementRoutes } from "./routes/mcp-management";
+import { modelsRoutes } from "./routes/models";
+import { usageRoutes } from "./routes/usage";
+import { userSettingsRoutes } from "./routes/user-settings";
 
 export { UserDurableObject } from "./do/user-durable-object";
 
@@ -40,6 +44,10 @@ app.use(
 
 app.route("/chat", chatRoutes);
 app.route("/ai", aiRoutes);
+app.route("/models", modelsRoutes);
+app.route("/usage", usageRoutes);
+app.route("/user/settings", userSettingsRoutes);
+app.route("/mcp", mcpManagementRoutes);
 
 app.get("/", (c) => {
 	return c.text("OK");

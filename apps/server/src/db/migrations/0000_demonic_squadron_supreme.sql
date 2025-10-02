@@ -52,4 +52,16 @@ CREATE TABLE `verification` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_verification_identifier` ON `verification` (`identifier`);--> statement-breakpoint
-CREATE INDEX `idx_verification_expires_at` ON `verification` (`expires_at`);
+CREATE INDEX `idx_verification_expires_at` ON `verification` (`expires_at`);--> statement-breakpoint
+CREATE TABLE `usage_events` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`days_since_epoch` integer NOT NULL,
+	`messages_count` integer DEFAULT 0 NOT NULL,
+	`model_usage` text DEFAULT '{}',
+	`last_message_at` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_usage_events_user_day` ON `usage_events` (`user_id`,`days_since_epoch`);

@@ -77,8 +77,8 @@ export function extractMessageText(message: unknown): string {
 	if (parts.length > 0) {
 		return parts
 			.filter((part) => part.type === "text" && typeof part.text === "string")
-			.map((part) => part.text!.trim())
-			.filter((value) => value.length > 0)
+			.map((part) => part.text?.trim())
+			.filter((value) => value && value.length > 0)
 			.join("\n");
 	}
 
@@ -217,8 +217,8 @@ export function mergeHistoryWithIncoming(
 function createContentKey(message: UiMessageLike): string {
 	const parts = message.parts
 		.filter((part) => part.type === "text" && typeof part.text === "string")
-		.map((part) => part.text!.trim())
-		.filter((text) => text.length > 0);
+		.map((part) => part.text?.trim())
+		.filter((text) => text && text.length > 0);
 	return `${message.role}:${parts.join("\n")}`;
 }
 

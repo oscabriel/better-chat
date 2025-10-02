@@ -2,14 +2,18 @@ import { Send } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/web/components/ui/button";
 import { Textarea } from "@/web/components/ui/textarea";
+import { McpServersDialogButton } from "./mcp-servers-dialog";
+import { ModelSelector } from "./model-selector";
 
 interface MessageInputProps {
 	disabled?: boolean;
-	onSendMessage: (message: { text: string }) => void;
+	onSendMessage: (message: { text: string; modelId?: string }) => void;
+	modelId?: string;
+	onModelChange?: (modelId: string) => void;
 }
 
 export const MessageInput = memo(
-	({ disabled, onSendMessage }: MessageInputProps) => {
+	({ disabled, onSendMessage, modelId, onModelChange }: MessageInputProps) => {
 		const [input, setInput] = useState("");
 		const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -27,7 +31,7 @@ export const MessageInput = memo(
 
 		const handleSend = () => {
 			if (!input.trim() || disabled) return;
-			onSendMessage({ text: input.trim() });
+			onSendMessage({ text: input.trim(), modelId });
 			setInput("");
 			adjustHeight(textareaRef.current);
 		};
@@ -45,31 +49,37 @@ export const MessageInput = memo(
 					e.preventDefault();
 					handleSend();
 				}}
-				className="flex items-end gap-2 px-0 sm:px-0"
+				className="flex flex-col gap-2 px-0 sm:px-0"
 			>
-				<Textarea
-					ref={textareaRef}
-					placeholder="Type your message..."
-					value={input}
-					onChange={(e) => {
-						setInput(e.target.value);
-						adjustHeight(e.currentTarget);
-					}}
-					onKeyDown={handleKeyPress}
-					disabled={disabled}
-					className="h-[2.25rem] min-h-0 flex-1 resize-none overflow-hidden px-3 py-1.5"
-					rows={1}
-					autoComplete="off"
-					autoFocus
-				/>
-				<Button
-					disabled={!input.trim() || disabled}
-					size="icon"
-					className="flex-shrink-0"
-					type="submit"
-				>
-					<Send className="size-4" />
-				</Button>
+				<div className="flex items-end gap-2">
+					<Textarea
+						ref={textareaRef}
+						placeholder="Type your message..."
+						value={input}
+						onChange={(e) => {
+							setInput(e.target.value);
+							adjustHeight(e.currentTarget);
+						}}
+						onKeyDown={handleKeyPress}
+						disabled={disabled}
+						className="h-[2.25rem] min-h-0 flex-1 resize-none overflow-hidden px-3 py-1.5"
+						rows={1}
+						autoComplete="off"
+						autoFocus
+					/>
+					<Button
+						disabled={!input.trim() || disabled}
+						size="icon"
+						className="flex-shrink-0"
+						type="submit"
+					>
+						<Send className="size-4" />
+					</Button>
+				</div>
+				<div className="flex items-center gap-2">
+					<ModelSelector modelId={modelId} onModelChange={onModelChange} />
+					<McpServersDialogButton disabled={disabled} />
+				</div>
 			</form>
 		);
 	},

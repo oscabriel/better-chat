@@ -33,6 +33,10 @@
 			"cache": false,
 			"persistent": true
 		},
+		"do:generate": {
+			"cache": false,
+			"persistent": true
+		},
 		"vite:clean": {
 			"cache": false
 		},

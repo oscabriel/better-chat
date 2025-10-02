@@ -1,7 +1,7 @@
 import type { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 
-import type { UserDOStub } from "@/server/lib/do";
+import type { StoredUIMessage, UserDOStub } from "@/server/lib/do";
 
 import { extractMessageText } from "./messages";
 
@@ -36,15 +36,12 @@ export async function maybeGenerateConversationTitle(options: {
 			return;
 		}
 		const stored = await stub.listMessages(conversationId, 50);
-		const chronological = stored.items
+		const chronological: StoredUIMessage[] = stored.items
 			.slice()
-			.sort(
-				(a: { created: number }, b: { created: number }) =>
-					a.created - b.created,
-			);
+			.sort((a, b) => a.created - b.created);
 		const relevantStored = chronological
-			.filter((item: { role: string }) => item.role !== "system")
-			.map((item: { role: string; parts: unknown[] }) => {
+			.filter((item) => item.role !== "system")
+			.map((item) => {
 				const text = extractMessageText({ parts: item.parts })
 					.replace(/\s+/g, " ")
 					.trim();
@@ -53,7 +50,7 @@ export async function maybeGenerateConversationTitle(options: {
 					content: text,
 				};
 			})
-			.filter((item: { content: string }) => item.content.length > 0)
+			.filter((item) => item.content.length > 0)
 			.slice(0, 5);
 		let relevantMessages = relevantStored as Array<{
 			role: string;

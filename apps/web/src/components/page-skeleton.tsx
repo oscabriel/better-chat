@@ -147,18 +147,12 @@ export function SignInPending() {
 			</div>
 
 			<div className="space-y-4">
-				<Button
-					type="button"
-					className="relative flex w-full items-center justify-center space-x-2 border border-gray-300 bg-background text-foreground hover:bg-accent dark:border-gray-600"
-				>
+				<Button className="relative flex w-full items-center justify-center space-x-2 border border-gray-300 bg-background text-foreground hover:bg-accent dark:border-gray-600">
 					<GoogleIcon className="h-4 w-4" />
 					<span>Sign in with Google</span>
 				</Button>
 
-				<Button
-					type="button"
-					className="relative flex w-full items-center justify-center space-x-2 border border-gray-300 bg-background text-foreground hover:bg-accent dark:border-gray-600"
-				>
+				<Button className="relative flex w-full items-center justify-center space-x-2 border border-gray-300 bg-background text-foreground hover:bg-accent dark:border-gray-600">
 					<GitHubIcon className="h-4 w-4" />
 					<span>Sign in with GitHub</span>
 				</Button>

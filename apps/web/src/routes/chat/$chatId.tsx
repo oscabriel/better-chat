@@ -1,56 +1,51 @@
 import { useChat } from "@ai-sdk/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	useMutation,
+	useQuery,
+	useQueryClient,
+	useQuery as useReactQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { MemoizedResponse } from "@/web/components/chat/memoized-response";
 import { MessageInput } from "@/web/components/chat/message-input";
+import { MessageRenderer } from "@/web/components/chat/message-renderer";
 import { ChatPending } from "@/web/components/page-skeleton";
 import { Button } from "@/web/components/ui/button";
 import { Card } from "@/web/components/ui/card";
-import { MAX_MESSAGE_BATCH, MAX_TEXT_LENGTH } from "@/web/lib/constants";
+import { MAX_MESSAGE_BATCH } from "@/web/lib/constants";
 import type {
-	ConversationListResponse,
-	EnrichedMessage,
-	MaybeEnrichedMessage,
+	ConversationSummary,
 	MessageListResponse,
 } from "@/web/types/chat";
-import {
-	createContentKey,
-	isTextPart,
-	mapStoredMessages,
-	normalizeToEnriched,
-	parseJsonResponse,
-} from "@/web/utils/chat";
-import { cn } from "@/web/utils/cn";
+import { parseJsonResponse } from "@/web/utils/chat";
+import { broadcastSync } from "@/web/utils/sync";
 
 export const Route = createFileRoute("/chat/$chatId")({
 	component: ChatPage,
 	pendingComponent: ChatPending,
-});
+	loader: async ({ params }) => {
+		const apiBase = `${import.meta.env.VITE_SERVER_URL}/api`;
+		const { chatId } = params;
 
-const assistantProseClass = cn(
-	// Base prose
-	"prose prose-base dark:prose-invert max-w-none",
-	// Text handling
-	"break-words [overflow-wrap:anywhere]",
-	// Headings
-	"prose-headings:font-semibold prose-headings:text-foreground",
-	"prose-h1:text-xl prose-h2:text-lg prose-h3:text-base",
-	// Text elements
-	"prose-p:my-2 prose-strong:text-foreground prose-p:leading-normal",
-	// Links
-	"prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-	// Lists
-	"prose-ol:my-3 prose-ul:my-3 prose-li:mt-1 prose-li:mb-0 prose-li:marker:text-primary",
-	"[&_ol>li>p]:my-0 [&_ul>li>p]:my-0",
-	// Blockquotes
-	"prose-blockquote:border-l-border prose-blockquote:bg-muted/50 prose-blockquote:pl-4 prose-blockquote:italic",
-	// Code elements (simplified - detailed styling handled by CodeBlock component)
-	"prose-pre:my-2 prose-pre:bg-transparent prose-pre:p-0",
-);
+		// Prefetch messages before rendering to avoid flash of empty state
+		try {
+			const response = await fetch(
+				`${apiBase}/chat/conversations/${chatId}/messages`,
+				{
+					credentials: "include",
+				},
+			);
+			if (response.ok) {
+				await response.json();
+			}
+		} catch (_) {
+			// Ignore prefetch errors - component will handle them
+		}
+	},
+});
 
 function ChatPage() {
 	const { chatId } = Route.useParams() as { chatId: string };
@@ -59,20 +54,7 @@ function ChatPage() {
 	const [pendingText, setPendingText] = useState<string | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
-
-	const conversationQuery = useQuery({
-		queryKey: ["chat", "conversation", chatId],
-		queryFn: async () => {
-			const response = await fetch(`${apiBase}/chat/conversations/${chatId}`, {
-				credentials: "include",
-			});
-			if (!response.ok) {
-				throw new Error("Conversation not found");
-			}
-			return parseJsonResponse(response);
-		},
-		staleTime: 30_000,
-	});
+	const initializedChatId = useRef<string | null>(null);
 
 	const messagesQuery = useQuery<MessageListResponse>({
 		queryKey: ["chat", "messages", chatId],
@@ -84,6 +66,22 @@ function ChatPage() {
 				},
 			);
 			return parseJsonResponse<MessageListResponse>(response);
+		},
+		enabled: !!chatId,
+		staleTime: 30_000,
+		placeholderData: (previousData) => previousData,
+	});
+
+	const conversationQuery = useQuery({
+		queryKey: ["chat", "conversation", chatId],
+		queryFn: async () => {
+			const response = await fetch(`${apiBase}/chat/conversations/${chatId}`, {
+				credentials: "include",
+			});
+			if (!response.ok) {
+				throw new Error("Conversation not found");
+			}
+			return parseJsonResponse(response);
 		},
 		staleTime: 30_000,
 	});
@@ -110,25 +108,55 @@ function ChatPage() {
 
 	const navigate = useNavigate();
 
-	const { messages, status, error, clearError, sendMessage } = useChat({
+	const { messages, status, error, sendMessage, setMessages } = useChat({
 		id: chatId,
 		transport: new DefaultChatTransport({
 			api: `${apiBase}/ai`,
 			credentials: "include",
-			prepareSendMessagesRequest({ messages, id }) {
-				const trimmed = messages.slice(-MAX_MESSAGE_BATCH);
-				return {
-					body: {
-						id,
-						conversationId: chatId,
-						message: trimmed.at(-1) ?? null,
-						messages: trimmed,
-					},
-				};
-			},
+			body: () => ({
+				// Use function syntax for dynamic config - values are resolved at request time
+				conversationId: chatId,
+				messages: messages.slice(-MAX_MESSAGE_BATCH),
+				modelId: selectedModelId || undefined,
+			}),
 		}),
 		experimental_throttle: 50,
+		onFinish: async () => {
+			// Invalidate queries to mark as stale and refetch when needed
+			queryClient.invalidateQueries({
+				queryKey: ["chat", "messages", chatId],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["chat", "conversation", chatId],
+			});
+			// Only invalidate conversations list if this might be a new conversation (first few messages)
+			if (messages.length <= 2) {
+				queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+				broadcastSync({ type: "conversations-list-changed" });
+			}
+			// Invalidate usage queries since we just consumed tokens
+			queryClient.invalidateQueries({ queryKey: ["usage", "current"] });
+			queryClient.invalidateQueries({ queryKey: ["usage", "stats"] });
+
+			// Broadcast changes to other tabs for cross-tab sync
+			broadcastSync({ type: "usage-changed" });
+			broadcastSync({ type: "conversation-changed", chatId });
+		},
 	});
+
+	// Load messages from API only when navigating to a new chat
+	// API now returns UIMessage[] directly (AI SDK v5 best practice)
+	useEffect(() => {
+		// Only load messages if this is a new chatId (not refetching the same chat)
+		if (
+			messagesQuery.data?.items &&
+			!messagesQuery.isLoading &&
+			initializedChatId.current !== chatId
+		) {
+			setMessages(messagesQuery.data.items);
+			initializedChatId.current = chatId;
+		}
+	}, [chatId, messagesQuery.data?.items, messagesQuery.isLoading, setMessages]);
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -141,11 +169,47 @@ function ChatPage() {
 	}, [chatId]);
 
 	useEffect(() => {
-		if (pendingText && status !== "streaming" && messages.length === 0) {
-			sendMessage({ text: pendingText });
+		if (
+			pendingText &&
+			status !== "streaming" &&
+			messages.length === 0 &&
+			!messagesQuery.isLoading &&
+			!messagesQuery.isFetching &&
+			messagesQuery.isSuccess
+		) {
+			try {
+				sendMessage({ text: pendingText });
+				setPendingText(null);
+			} catch (error) {
+				console.error("Failed to send pending message:", error);
+				toast.error("Failed to send message");
+				// Save back to session storage for retry
+				if (typeof window !== "undefined") {
+					try {
+						sessionStorage.setItem(
+							`better-t-chat:pending:${chatId}`,
+							pendingText,
+						);
+					} catch (_) {
+						// Ignore storage errors
+					}
+				}
+				setPendingText(null);
+			}
 		}
-	}, [pendingText, sendMessage, status, messages.length]);
+	}, [
+		pendingText,
+		sendMessage,
+		status,
+		messages.length,
+		messagesQuery.isLoading,
+		messagesQuery.isFetching,
+		messagesQuery.isSuccess,
+		chatId,
+	]);
 
+	// Scroll to bottom when messages change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: We intentionally want to scroll when messages array changes
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
@@ -160,28 +224,40 @@ function ChatPage() {
 		}
 	};
 
-	const enrichedMessages = useMemo(() => {
-		return messages.map((msg) => {
-			// Extract text content from the message parts
-			const textContent =
-				msg.parts?.find((part) => part.type === "text")?.text || "";
-			return {
-				id: msg.id,
-				role: msg.role,
-				parts: msg.parts?.length
-					? msg.parts
-					: [
-							{
-								type: "text",
-								text: textContent,
-							},
-						],
-				created: new Date().toISOString(),
-			};
-		});
-	}, [messages]);
+	const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
+		undefined,
+	);
 
-	const title = (conversationQuery.data as any)?.title?.trim() || "New chat";
+	// Load user settings to determine BYOK disabled providers
+	const settingsQuery = useReactQuery<{
+		selectedModel: string;
+		apiKeys: Record<string, string>;
+	}>({
+		queryKey: ["user", "settings"],
+		queryFn: async () => {
+			const response = await fetch(`${apiBase}/user/settings`, {
+				credentials: "include",
+			});
+			return parseJsonResponse(response);
+		},
+		staleTime: 30_000,
+	});
+
+	// Initialize selector with persisted user default when it becomes available
+	useEffect(() => {
+		if (!selectedModelId && settingsQuery.data?.selectedModel) {
+			setSelectedModelId(settingsQuery.data.selectedModel);
+		}
+	}, [selectedModelId, settingsQuery.data?.selectedModel]);
+
+	const title =
+		(conversationQuery.data as ConversationSummary)?.title?.trim() ||
+		"New chat";
+
+	// Show loading state on initial fetch
+	if (messagesQuery.isInitialLoading) {
+		return <ChatPending />;
+	}
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
@@ -203,53 +279,15 @@ function ChatPage() {
 					</div>
 				</div>
 			</div>
-			<div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-				<div className="mx-auto w-full max-w-3xl space-y-6">
-					{enrichedMessages.map((message, index) => (
-						<Fragment key={message.id || index}>
-							{message.parts?.map((part, partIndex) => {
-								if (isTextPart(part)) {
-									if (message.role === "user") {
-										return (
-											<div
-												key={"${message.id}-text"}
-												className="flex justify-end"
-											>
-												<Card className="max-w-[80%] bg-primary text-primary-foreground">
-													<div className="px-4 py-3">
-														<p className="whitespace-pre-wrap text-sm">
-															{part.text}
-														</p>
-													</div>
-												</Card>
-											</div>
-										);
-									}
-									return (
-										<div
-											key={"${message.id}-text"}
-											className="flex justify-start"
-										>
-											<Card className="max-w-[80%]">
-												<div className="px-4 py-3">
-													<MemoizedResponse
-														content={part.text}
-														id={message.id}
-														proseClass={assistantProseClass}
-													/>
-												</div>
-											</Card>
-										</div>
-									);
-								}
-								return null;
-							})}
-						</Fragment>
+			<div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
+				<div className="mx-auto w-full max-w-3xl space-y-4">
+					{messages.map((message) => (
+						<MessageRenderer key={message.id} message={message} />
 					))}
 					{status === "streaming" && (
 						<div className="flex justify-start">
-							<Card className="max-w-[80%]">
-								<div className="px-4 py-3">
+							<Card className="max-w-[80%] gap-2 py-2">
+								<div className="px-3 py-2">
 									<p className="text-muted-foreground text-sm">Thinking...</p>
 								</div>
 							</Card>
@@ -257,8 +295,8 @@ function ChatPage() {
 					)}
 					{error && (
 						<div className="flex justify-center">
-							<Card className="border-destructive bg-destructive/10">
-								<div className="px-4 py-3">
+							<Card className="gap-2 border-destructive bg-destructive/10 py-2">
+								<div className="px-3 py-2">
 									<p className="text-destructive text-sm">
 										{error.message || "An error occurred"}
 									</p>
@@ -273,6 +311,19 @@ function ChatPage() {
 				<div className="mx-auto w-full max-w-3xl">
 					<MessageInput
 						disabled={status === "streaming"}
+						modelId={selectedModelId}
+						onModelChange={async (id) => {
+							setSelectedModelId(id);
+							// persist to user settings
+							try {
+								await fetch(`${apiBase}/user/settings`, {
+									method: "PUT",
+									headers: { "Content-Type": "application/json" },
+									credentials: "include",
+									body: JSON.stringify({ selectedModel: id }),
+								});
+							} catch (_) {}
+						}}
 						onSendMessage={({ text }) => sendMessage({ text })}
 					/>
 				</div>

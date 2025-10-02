@@ -208,7 +208,6 @@ export function SignInForm({ redirectPath }: SignInFormProps) {
 
 					<div className="space-y-4">
 						<Button
-							type="button"
 							className="relative flex w-full items-center justify-center space-x-2 border border-gray-300 bg-background text-foreground hover:bg-accent dark:border-gray-600"
 							onClick={handleGoogleLogin}
 							disabled={socialSignInMutation.isPending}
@@ -218,7 +217,6 @@ export function SignInForm({ redirectPath }: SignInFormProps) {
 						</Button>
 
 						<Button
-							type="button"
 							className="relative flex w-full items-center justify-center space-x-2 border border-gray-300 bg-background text-foreground hover:bg-accent dark:border-gray-600"
 							onClick={handleGithubLogin}
 							disabled={socialSignInMutation.isPending}
@@ -299,7 +297,6 @@ export function SignInForm({ redirectPath }: SignInFormProps) {
 						</otpForm.Subscribe>
 
 						<Button
-							type="button"
 							variant="link"
 							className="w-full"
 							onClick={() => {

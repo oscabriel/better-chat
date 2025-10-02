@@ -23,6 +23,8 @@ export function Response({ children, className, ...props }: ResponseProps) {
 			className={cn(
 				// Base markdown response container
 				"markdown-response w-full min-w-0 break-words",
+				// Vertical rhythm between direct children
+				"space-y-4",
 				// Pre/code overflow handling (CodeBlock handles detailed styling)
 				"[&_pre]:max-w-full [&_pre]:overflow-x-auto",
 				"[&_pre_code]:break-normal",

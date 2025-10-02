@@ -55,6 +55,52 @@ chatRoutes.get("/messages", async (c) => {
 	}
 });
 
+// Fetch a single conversation by ID
+chatRoutes.get("/conversations/:conversationId", async (c) => {
+	try {
+		const { stub } = await requireUserDO(c);
+		const conversationId = c.req.param("conversationId");
+		if (!conversationId) {
+			return c.json({ error: "conversationId is required" }, 400);
+		}
+		// Auto-create conversation if it doesn't exist to prevent race condition
+		// where frontend loads conversation before first message is sent
+		let conversation = await stub.getConversation(conversationId);
+		if (!conversation) {
+			await stub.upsertConversation(conversationId);
+			conversation = await stub.getConversation(conversationId);
+		}
+		if (!conversation) {
+			return c.json({ error: "Not found" }, 404);
+		}
+		return c.json(conversation);
+	} catch (err) {
+		if (err instanceof UnauthorizedError)
+			return c.json({ error: err.message }, 401);
+		throw err;
+	}
+});
+
+// Fetch messages by conversation ID (path variant)
+chatRoutes.get("/conversations/:conversationId/messages", async (c) => {
+	try {
+		const { stub } = await requireUserDO(c);
+		const conversationId = c.req.param("conversationId");
+		if (!conversationId) {
+			return c.json({ error: "conversationId is required" }, 400);
+		}
+		const limit = Number(c.req.query("limit") ?? 100);
+		const cursor = c.req.query("cursor");
+		const parsedCursor = cursor ? Number(cursor) : undefined;
+		const result = await stub.listMessages(conversationId, limit, parsedCursor);
+		return c.json(result);
+	} catch (err) {
+		if (err instanceof UnauthorizedError)
+			return c.json({ error: err.message }, 401);
+		throw err;
+	}
+});
+
 chatRoutes.get("/debug/conversations/:conversationId", async (c) => {
 	try {
 		const { stub } = await requireUserDO(c);
