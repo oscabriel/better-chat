@@ -1,18 +1,19 @@
 import { Hono } from "hono";
-import { requireUserDO, UnauthorizedError } from "@/server/lib/guard";
+import { requireUserId, UnauthorizedError } from "@/server/lib/guard";
 import {
+	getModelCatalog,
 	getUserAvailableModels,
-	loadModelsDevCatalog,
 } from "@/server/lib/providers";
+import { getUserSettingsRecord } from "@/server/lib/user-settings";
 
 export const modelsRoutes = new Hono();
 
 // Get available models based on user's API keys
 modelsRoutes.get("/available", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
-		const userSettings = await stub.getUserSettings();
-		const availableModels = await getUserAvailableModels(userSettings.apiKeys);
+		const userId = await requireUserId(c);
+		const userSettings = await getUserSettingsRecord(userId);
+		const availableModels = getUserAvailableModels(userSettings.apiKeys);
 
 		return c.json(availableModels);
 	} catch (err) {
@@ -26,7 +27,7 @@ modelsRoutes.get("/available", async (c) => {
 // Get all models (for reference)
 modelsRoutes.get("/all", async (c) => {
 	try {
-		const catalog = await loadModelsDevCatalog();
+		const catalog = getModelCatalog();
 		return c.json(catalog);
 	} catch (err) {
 		if (err instanceof UnauthorizedError) {

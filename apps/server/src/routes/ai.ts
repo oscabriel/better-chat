@@ -19,17 +19,17 @@ import {
 import { buildSystemPrompt } from "@/server/ai/prompts";
 import { maybeGenerateConversationTitle } from "@/server/ai/title-generation";
 import type { StoredUIMessage } from "@/server/lib/do";
-import {
-	requireUserDO,
-	requireUserId,
-	UnauthorizedError,
-} from "@/server/lib/guard";
+import { requireUserDO, UnauthorizedError } from "@/server/lib/guard";
 import {
 	getModelDefinition,
 	getModelFromId,
 	getReasoningModel,
 	validateModelAccess,
 } from "@/server/lib/providers";
+import {
+	getCustomMcpServers,
+	getUserSettingsRecord,
+} from "@/server/lib/user-settings";
 import {
 	BUILT_IN_MCP_SERVERS,
 	closeMCPClients,
@@ -51,21 +51,18 @@ export const aiRoutes = new Hono();
 
 aiRoutes.post("/", async (c) => {
 	try {
-		const userId = await requireUserId(c);
-		const { stub } = await requireUserDO(c);
+		const { userId, stub } = await requireUserDO(c);
 		const body = aiRequestSchema.parse(await c.req.json());
 		const { messages: uiMessages, conversationId } = body;
 
 		// Get user settings including API keys for BYOK check
-		const userSettings = await stub.getUserSettings();
+		const userSettings = await getUserSettingsRecord(userId);
 		const modelId = body.modelId || userSettings.selectedModel;
-		const provider = modelId.split(":")[0]; // Extract provider from modelId (e.g., "anthropic:claude-3" -> "anthropic")
+		const provider = modelId.split(":")[0];
 
-		// Ensure user is within quota limits before proceeding (skipped if user has BYOK for this provider)
 		await requireAvailableQuota(userId, provider, userSettings.apiKeys || {});
 
-		// Validate model access based on user's API keys
-		const hasAccess = await validateModelAccess(modelId, userSettings.apiKeys);
+		const hasAccess = validateModelAccess(modelId, userSettings.apiKeys);
 		if (!hasAccess) {
 			return c.json(
 				{
@@ -77,10 +74,9 @@ aiRoutes.post("/", async (c) => {
 		}
 
 		// Get model definition for usage tracking
-		const modelDefinition = await getModelDefinition(modelId);
+		const modelDefinition = getModelDefinition(modelId);
 
-		// Get user's enabled MCP servers (built-in + custom)
-		const customServers = await stub.getCustomMCPServers();
+		const customServers = await getCustomMcpServers(userId);
 		const enabledBuiltInIds = userSettings.enabledMcpServers || [];
 
 		// Inject environment-based headers for built-in servers
@@ -190,9 +186,6 @@ aiRoutes.post("/", async (c) => {
 				if (part.type === "finish" && usageData) {
 					const metadata = {
 						usage: usageData,
-						cost: modelDefinition?.costPer1kTokens
-							? calculateCost(usageData, modelDefinition.costPer1kTokens)
-							: 0,
 						modelId,
 					};
 					return metadata;
@@ -242,16 +235,9 @@ aiRoutes.post("/", async (c) => {
 					(responseMessage as unknown as { usage?: LanguageModelUsage }).usage;
 
 				if (usageData) {
-					const cost =
-						responseMessage.metadata?.cost ||
-						(modelDefinition?.costPer1kTokens
-							? calculateCost(usageData, modelDefinition.costPer1kTokens)
-							: 0);
-
 					await recordUsage(userId, {
 						modelId,
 						usage: usageData,
-						cost,
 						conversationId,
 					});
 				}
@@ -277,19 +263,3 @@ aiRoutes.post("/", async (c) => {
 		throw err;
 	}
 });
-
-function calculateCost(
-	usage: LanguageModelUsage,
-	pricing?: { input: number; output: number },
-) {
-	if (!pricing || !usage) return 0;
-
-	// AI SDK v5 usage object properties
-	const inputTokens = (usage as { inputTokens?: number }).inputTokens || 0;
-	const outputTokens = (usage as { outputTokens?: number }).outputTokens || 0;
-
-	const inputCost = (inputTokens / 1000) * pricing.input;
-	const outputCost = (outputTokens / 1000) * pricing.output;
-
-	return Math.round((inputCost + outputCost) * 100) / 100; // Round to 2 decimal places
-}

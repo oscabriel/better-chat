@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ import { trpc } from "@/web/lib/trpc";
 
 export function ProfileInfo() {
 	const [isEditOpen, setIsEditOpen] = useState(false);
+	const queryClient = useQueryClient();
 
 	const user = useQuery({
 		...trpc.user.getProfile.queryOptions(),
@@ -44,6 +45,10 @@ export function ProfileInfo() {
 			onSuccess: () => {
 				toast.success("Profile updated successfully");
 				setIsEditOpen(false);
+				// Invalidate all user profile queries to update the user menu
+				queryClient.invalidateQueries({
+					queryKey: trpc.user.getProfile.queryKey(),
+				});
 				user.refetch();
 				initials.refetch();
 			},

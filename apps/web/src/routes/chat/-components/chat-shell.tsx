@@ -68,12 +68,20 @@ export function ChatShell() {
 	const isInitializedRef = useRef(false);
 
 	useEffect(() => {
+		// Initialize selected model from settings when available
 		if (!isInitializedRef.current && settingsQuery.data?.selectedModel) {
 			setSelectedModelId(settingsQuery.data.selectedModel);
 			lastSavedModelRef.current = settingsQuery.data.selectedModel;
 			isInitializedRef.current = true;
 		}
-	}, [selectedModelId, settingsQuery.data?.selectedModel]);
+	}, [settingsQuery.data?.selectedModel]);
+
+	// Reset initialization flag when settings change (e.g., user logs out/in)
+	useEffect(() => {
+		if (!settingsQuery.data?.selectedModel) {
+			isInitializedRef.current = false;
+		}
+	}, [settingsQuery.data?.selectedModel]);
 
 	const handleModelChange = useCallback(
 		async (id: string) => {

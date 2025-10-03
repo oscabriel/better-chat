@@ -3,8 +3,25 @@
  * Uses Web Crypto API with AES-GCM for authenticated encryption
  */
 
+// Maximum number of derived keys to cache (prevents memory leaks)
+const MAX_CACHE_SIZE = 1000;
+
 // Cache for derived keys to avoid repeated derivation
 const keyCache = new Map<string, CryptoKey>();
+
+/**
+ * Adds a key to the cache with LRU-style eviction when cache is full
+ */
+function addToCache(key: string, value: CryptoKey): void {
+	if (keyCache.size >= MAX_CACHE_SIZE) {
+		// Remove the oldest entry (first in the Map)
+		const firstKey = keyCache.keys().next().value;
+		if (firstKey !== undefined) {
+			keyCache.delete(firstKey);
+		}
+	}
+	keyCache.set(key, value);
+}
 
 /**
  * Derives a user-specific encryption key from the master key and userId
@@ -14,8 +31,8 @@ async function deriveUserKey(
 	masterKey: string,
 	userId: string,
 ): Promise<CryptoKey> {
-	const cacheKey = `${masterKey.slice(0, 8)}:${userId}`;
-	const cached = keyCache.get(cacheKey);
+	const lookupKey = `${masterKey.slice(0, 8)}:${userId}`;
+	const cached = keyCache.get(lookupKey);
 	if (cached) return cached;
 
 	// Create key material from master key
@@ -41,7 +58,7 @@ async function deriveUserKey(
 		["encrypt", "decrypt"],
 	);
 
-	keyCache.set(cacheKey, derivedKey);
+	addToCache(lookupKey, derivedKey);
 	return derivedKey;
 }
 
@@ -140,6 +157,7 @@ export async function encryptApiKeys(
 /**
  * Decrypts a record of encrypted API keys
  * Returns a record with plaintext values
+ * Throws if any decryption fails - caller should handle errors
  */
 export async function decryptApiKeys(
 	encryptedKeys: Record<string, string>,
@@ -150,19 +168,11 @@ export async function decryptApiKeys(
 
 	for (const [provider, encryptedKey] of Object.entries(encryptedKeys)) {
 		if (encryptedKey) {
-			try {
-				decrypted[provider] = await decryptApiKey(
-					encryptedKey,
-					masterKey,
-					userId,
-				);
-			} catch (error) {
-				console.error(
-					`Failed to decrypt API key for provider ${provider}:`,
-					error,
-				);
-				// Skip this key if decryption fails (might be corrupted or from old encryption)
-			}
+			decrypted[provider] = await decryptApiKey(
+				encryptedKey,
+				masterKey,
+				userId,
+			);
 		}
 	}
 

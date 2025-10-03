@@ -1,4 +1,4 @@
-import m0000 from "./0000_brown_the_executioner.sql";
+import m0000 from "./0000_massive_sentinel.sql";
 import journal from "./meta/_journal.json";
 
 export default {

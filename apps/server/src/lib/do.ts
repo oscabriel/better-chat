@@ -1,8 +1,5 @@
 import type { UIMessage } from "ai";
 
-/**
- * Extended UIMessage with required created timestamp for storage
- */
 export type StoredUIMessage = UIMessage & {
 	created: number;
 };
@@ -12,27 +9,6 @@ export type ConversationRecord = {
 	title: string | null;
 	created: Date;
 	updated: Date;
-};
-
-export type UserSettings = {
-	selectedModel: string;
-	apiKeys: Record<string, string>;
-	enabledModels: string[];
-	enabledMcpServers: string[];
-	theme: string;
-	chatWidth: string;
-};
-
-export type CustomMCPServer = {
-	id: string;
-	userId?: string;
-	name: string;
-	url: string;
-	type: "http" | "sse";
-	description?: string;
-	headers?: Record<string, string>;
-	enabled: boolean;
-	created: Date;
 };
 
 export type UserDOStub = {
@@ -52,22 +28,6 @@ export type UserDOStub = {
 		items: StoredUIMessage[],
 	): Promise<{ count: number }>;
 	deleteConversation(conversationId: string): Promise<{ id: string }>;
-	getUserSettings(): Promise<UserSettings>;
-	updateUserSettings(updates: Partial<UserSettings>): Promise<void>;
-	getCustomMCPServers(): Promise<CustomMCPServer[]>;
-	addCustomMCPServer(server: {
-		id: string;
-		userId?: string;
-		name: string;
-		url: string;
-		type: "http" | "sse";
-		description?: string;
-		headers?: Record<string, string>;
-		enabled: boolean;
-		created: Date;
-	}): Promise<void>;
-	removeCustomMCPServer(serverId: string): Promise<void>;
-	toggleCustomMCPServer(serverId: string, enabled: boolean): Promise<void>;
 };
 
 export function getUserDOStub(env: unknown, userId: string): UserDOStub {

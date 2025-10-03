@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { requireUserDO, UnauthorizedError } from "@/server/lib/guard";
+import { requireUserId, UnauthorizedError } from "@/server/lib/guard";
+import {
+	addCustomMcpServer,
+	getCustomMcpServers,
+	getUserSettingsRecord,
+	removeCustomMcpServer,
+	toggleCustomMcpServer,
+	updateUserSettingsRecord,
+} from "@/server/lib/user-settings";
 import { BUILT_IN_MCP_SERVERS } from "@/server/mcp/client";
 
 const addMCPServerSchema = z.object({
@@ -16,9 +24,9 @@ export const mcpManagementRoutes = new Hono();
 // Get all MCP servers (built-in + user's custom)
 mcpManagementRoutes.get("/servers", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
-		const userSettings = await stub.getUserSettings();
-		const customServers = await stub.getCustomMCPServers();
+		const userId = await requireUserId(c);
+		const userSettings = await getUserSettingsRecord(userId);
+		const customServers = await getCustomMcpServers(userId);
 		const enabledBuiltInIds = userSettings.enabledMcpServers || [];
 
 		// Combine built-in and custom servers with enabled status
@@ -45,12 +53,12 @@ mcpManagementRoutes.get("/servers", async (c) => {
 // Add custom MCP server
 mcpManagementRoutes.post("/servers", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
+		const userId = await requireUserId(c);
 		const body = addMCPServerSchema.parse(await c.req.json());
 
 		const serverId = `custom_${Date.now()}`;
 
-		await stub.addCustomMCPServer({
+		await addCustomMcpServer(userId, {
 			id: serverId,
 			name: body.name,
 			url: body.url,
@@ -83,29 +91,29 @@ mcpManagementRoutes.post("/servers", async (c) => {
 // Toggle MCP server enabled/disabled
 mcpManagementRoutes.put("/servers/:serverId/toggle", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
+		const userId = await requireUserId(c);
 		const serverId = c.req.param("serverId");
 		const { enabled } = z
 			.object({ enabled: z.boolean() })
 			.parse(await c.req.json());
 
 		if (serverId.startsWith("custom_")) {
-			// Toggle custom server
-			await stub.toggleCustomMCPServer(serverId, enabled);
+			await toggleCustomMcpServer(userId, serverId, enabled);
 		} else {
-			// Toggle built-in server in user settings
-			const settings = await stub.getUserSettings();
+			const settings = await getUserSettingsRecord(userId);
 			let enabledServers = settings.enabledMcpServers || [];
 
 			if (enabled) {
 				if (!enabledServers.includes(serverId)) {
-					enabledServers.push(serverId);
+					enabledServers = [...enabledServers, serverId];
 				}
 			} else {
 				enabledServers = enabledServers.filter((id) => id !== serverId);
 			}
 
-			await stub.updateUserSettings({ enabledMcpServers: enabledServers });
+			await updateUserSettingsRecord(userId, {
+				enabledMcpServers: enabledServers,
+			});
 		}
 
 		return c.json({ success: true });
@@ -120,16 +128,15 @@ mcpManagementRoutes.put("/servers/:serverId/toggle", async (c) => {
 // Remove custom MCP server
 mcpManagementRoutes.delete("/servers/:serverId", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
+		const userId = await requireUserId(c);
 		const serverId = c.req.param("serverId");
 
-		// Prevent deletion of built-in servers
 		const builtInServer = BUILT_IN_MCP_SERVERS.find((s) => s.id === serverId);
 		if (builtInServer) {
 			return c.json({ error: "Cannot delete built-in servers" }, 400);
 		}
 
-		await stub.removeCustomMCPServer(serverId);
+		await removeCustomMcpServer(userId, serverId);
 
 		return c.json({ success: true });
 	} catch (err) {

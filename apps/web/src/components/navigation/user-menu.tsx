@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
 	BookText,
@@ -18,6 +19,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/web/components/ui/dropdown-menu";
 import { authClient } from "@/web/lib/auth-client";
+import { trpc } from "@/web/lib/trpc";
 
 const getFirstName = (
 	user: { name?: string | null; email?: string | null } | null | undefined,
@@ -25,18 +27,26 @@ const getFirstName = (
 	if (!user) {
 		return null;
 	}
-	return user.name?.trim().split(/\s+/)[0] ?? user.email ?? null;
+	return user.name?.trim().split(/\s+/)[0] ?? null;
 };
 
 export default function UserMenu() {
 	const navigate = useNavigate();
-	const { data } = authClient.useSession();
+	const { data: session } = authClient.useSession();
 	const isCheckingSession = useRouterState({
 		select: (state) => state.isLoading,
 	});
 
-	const displayFirstName = data?.user
-		? (getFirstName(data.user) ?? "User")
+	// Use tRPC to get user data instead of session data for real-time updates
+	const user = useQuery({
+		...trpc.user.getProfile.queryOptions(),
+		refetchOnWindowFocus: true,
+		refetchOnMount: true,
+		staleTime: 0,
+	});
+
+	const displayFirstName = user.data
+		? (getFirstName(user.data) ?? "User")
 		: null;
 
 	if (isCheckingSession && !displayFirstName) {
@@ -47,7 +57,7 @@ export default function UserMenu() {
 		);
 	}
 
-	if (!data?.user) {
+	if (!session?.user) {
 		return (
 			<Button
 				variant="outline"
@@ -81,10 +91,10 @@ export default function UserMenu() {
 				<DropdownMenuLabel className="font-normal">
 					<div className="flex flex-col space-y-1">
 						<p className="font-medium text-sm leading-none">
-							{data?.user?.name || "User"}
+							{user.data?.name || "User"}
 						</p>
 						<p className="text-muted-foreground text-xs leading-none">
-							{data?.user?.email}
+							{user.data?.email}
 						</p>
 					</div>
 				</DropdownMenuLabel>

@@ -26,15 +26,6 @@ export const BUILT_IN_MCP_SERVERS: MCPServerConfig[] = [
 		headers: {},
 		isBuiltIn: true,
 	},
-	{
-		id: "cloudflare-docs",
-		name: "Cloudflare",
-		url: "https://docs.mcp.cloudflare.com/sse",
-		type: "sse",
-		description: "Get up to date reference information on Cloudflare.",
-		headers: {},
-		isBuiltIn: true,
-	},
 ];
 
 export async function createMCPClients(serverConfigs: MCPServerConfig[]) {

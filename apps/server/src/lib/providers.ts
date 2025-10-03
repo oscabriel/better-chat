@@ -5,7 +5,6 @@ import {
 	createProviderRegistry,
 	customProvider,
 	defaultSettingsMiddleware,
-	extractReasoningMiddleware,
 	wrapLanguageModel,
 } from "ai";
 
@@ -84,6 +83,26 @@ const STATIC_MODELS: ModelDefinition[] = [
 		description: "Fast, lightweight model for instant responses",
 		access: "free",
 		capabilities: ["text"],
+		contextWindow: 128_000,
+		maxOutputTokens: 8_192,
+	},
+	{
+		id: "openrouter:meta-llama/llama-4-scout:free",
+		name: "Llama 4 Scout (Free)",
+		provider: "Meta (OpenRouter)",
+		description: "Free access to Llama 4 Scout via OpenRouter",
+		access: "free",
+		capabilities: ["text", "tools"],
+		contextWindow: 128_000,
+		maxOutputTokens: 8_192,
+	},
+	{
+		id: "openrouter:meta-llama/llama-3.3-70b-instruct:free",
+		name: "Llama 3.3 70B Instruct (Free)",
+		provider: "Meta (OpenRouter)",
+		description: "Free access to Llama 3.3 70B via OpenRouter",
+		access: "free",
+		capabilities: ["text", "tools"],
 		contextWindow: 128_000,
 		maxOutputTokens: 8_192,
 	},
@@ -256,76 +275,21 @@ const STATIC_MODELS: ModelDefinition[] = [
 		maxOutputTokens: 8_192,
 		costPer1kTokens: { input: 0.002, output: 0.006 },
 	},
+	{
+		id: "openrouter:meta-llama/llama-4-maverick",
+		name: "Llama 4 Maverick (OpenRouter)",
+		provider: "Meta (OpenRouter)",
+		description: "Llama 4 Maverick via OpenRouter with BYOK",
+		access: "byok",
+		capabilities: ["text", "tools", "reasoning"],
+		contextWindow: 128_000,
+		maxOutputTokens: 8_192,
+		costPer1kTokens: { input: 0.0015, output: 0.0045 },
+	},
 ];
 
-const FREE_MODEL_IDS = new Set(
-	STATIC_MODELS.filter((m) => m.access === "free").map((m) => m.id),
-);
-
-interface ModelsDevRecord {
-	provider: { id: string; name: string };
-	model: { id: string; name: string; description?: string };
-	pricing: {
-		input_cost_per_million_tokens?: number;
-		output_cost_per_million_tokens?: number;
-	};
-	capabilities: {
-		tool_call?: boolean;
-		reasoning?: boolean;
-		multimodal?: boolean;
-	};
-	context_limit?: number;
-	output_limit?: number;
-}
-
-let modelsDevCache: ModelDefinition[] | null = null;
-
-export async function loadModelsDevCatalog(
-	force = false,
-): Promise<ModelDefinition[]> {
-	if (!force && modelsDevCache) return modelsDevCache ?? STATIC_MODELS;
-	// Replace remote fetch with static list for now
-	modelsDevCache = STATIC_MODELS;
-	return modelsDevCache;
-}
-
-function _mapModelsDevRecord(entry: ModelsDevRecord): ModelDefinition | null {
-	if (!entry?.provider?.id || !entry?.model?.id) return null;
-
-	const id = `${entry.provider.id}:${entry.model.id}`;
-	const access = FREE_MODEL_IDS.has(id) ? "free" : "byok";
-
-	return {
-		id,
-		name: entry.model.name,
-		provider: entry.provider.name,
-		description: entry.model.description ?? "",
-		access,
-		capabilities: deriveCapabilities(entry),
-		contextWindow: entry.context_limit ?? 128000,
-		maxOutputTokens: entry.output_limit,
-		costPer1kTokens: normalizePricing(entry.pricing),
-	};
-}
-
-function deriveCapabilities(entry: ModelsDevRecord): string[] {
-	const caps: string[] = ["text"];
-	if (entry.capabilities?.tool_call) caps.push("tools");
-	if (entry.capabilities?.reasoning) caps.push("reasoning");
-	if (entry.capabilities?.multimodal) caps.push("images");
-	return caps;
-}
-
-function normalizePricing(pricing: ModelsDevRecord["pricing"]) {
-	if (
-		!pricing?.input_cost_per_million_tokens ||
-		!pricing?.output_cost_per_million_tokens
-	)
-		return undefined;
-	return {
-		input: pricing.input_cost_per_million_tokens / 1000,
-		output: pricing.output_cost_per_million_tokens / 1000,
-	};
+export function getModelCatalog(): ModelDefinition[] {
+	return STATIC_MODELS;
 }
 
 // Configure global default provider for free tier simplification
@@ -333,10 +297,10 @@ if (process.env.NODE_ENV === "production") {
 	globalThis.AI_SDK_DEFAULT_PROVIDER = google;
 }
 
-// Create Llama provider (uses OpenAI-compatible API)
-const llama = createOpenAI({
-	baseURL: "https://api.llama-api.com/v1",
-	apiKey: process.env.LLAMA_API_KEY || "",
+// Create OpenRouter provider (uses OpenAI-compatible API)
+const openrouter = createOpenAI({
+	baseURL: "https://openrouter.ai/api/v1",
+	apiKey: process.env.OPENROUTER_API_KEY || "",
 });
 
 export const registry = createProviderRegistry({
@@ -350,15 +314,17 @@ export const registry = createProviderRegistry({
 		},
 		fallbackProvider: google,
 	}),
-	llama: customProvider({
+	openrouter: customProvider({
 		languageModels: {
-			"llama-4-scout-17b-16e": llama("llama-4-scout-17b-16e"),
-			"llama-3.1-8b-instant": llama("llama-3.1-8b-instant"),
-			"llama-4-maverick-17b-128e-instant": llama(
-				"llama-4-maverick-17b-128e-instant",
+			"meta-llama/llama-4-scout:free": openrouter(
+				"meta-llama/llama-4-scout:free",
 			),
+			"meta-llama/llama-3.3-70b-instruct:free": openrouter(
+				"meta-llama/llama-3.3-70b-instruct:free",
+			),
+			"meta-llama/llama-4-maverick": openrouter("meta-llama/llama-4-maverick"),
 		},
-		fallbackProvider: llama,
+		fallbackProvider: openrouter,
 	}),
 });
 
@@ -383,9 +349,9 @@ export function getModelFromId(modelId: string, userApiKey?: string) {
 				});
 				return customGoogle(model);
 			}
-			case "llama":
+			case "openrouter":
 				return createOpenAI({
-					baseURL: "https://api.llama-api.com/v1",
+					baseURL: "https://openrouter.ai/api/v1",
 					apiKey: userApiKey,
 				})(model);
 		}
@@ -406,7 +372,6 @@ export function getReasoningModel(modelId: string, userApiKey?: string) {
 
 	// Configure provider-specific reasoning options
 	if (provider === "openai" && model.startsWith("o")) {
-		// OpenAI o1/o3 models
 		return wrapLanguageModel({
 			model: baseModel,
 			middleware: defaultSettingsMiddleware({
@@ -422,7 +387,6 @@ export function getReasoningModel(modelId: string, userApiKey?: string) {
 	}
 
 	if (provider === "anthropic" && model.includes("sonnet")) {
-		// Anthropic Claude with thinking
 		return wrapLanguageModel({
 			model: baseModel,
 			middleware: defaultSettingsMiddleware({
@@ -440,45 +404,28 @@ export function getReasoningModel(modelId: string, userApiKey?: string) {
 		});
 	}
 
-	if (provider === "deepseek" && model.includes("r1")) {
-		// DeepSeek R1 with reasoning extraction
-		return wrapLanguageModel({
-			model: baseModel,
-			middleware: [
-				extractReasoningMiddleware({ tagName: "think" }),
-				defaultSettingsMiddleware({
-					settings: {
-						temperature: 0.7,
-					},
-				}),
-			],
-		});
-	}
-
 	return baseModel;
 }
 
-export async function getModelDefinition(
-	modelId: string,
-): Promise<ModelDefinition | null> {
-	const catalog = await loadModelsDevCatalog();
+export function getModelDefinition(modelId: string): ModelDefinition | null {
+	const catalog = getModelCatalog();
 	return catalog.find((model) => model.id === modelId) ?? null;
 }
 
-export async function getFreeModels(): Promise<ModelDefinition[]> {
-	const catalog = await loadModelsDevCatalog();
+export function getFreeModels(): ModelDefinition[] {
+	const catalog = getModelCatalog();
 	return catalog.filter((model) => model.access === "free");
 }
 
-export async function getBYOKModels(): Promise<ModelDefinition[]> {
-	const catalog = await loadModelsDevCatalog();
+export function getBYOKModels(): ModelDefinition[] {
+	const catalog = getModelCatalog();
 	return catalog.filter((model) => model.access === "byok");
 }
 
-export async function getUserAvailableModels(
+export function getUserAvailableModels(
 	userApiKeys: Record<string, string>,
-): Promise<ModelDefinition[]> {
-	const catalog = await loadModelsDevCatalog();
+): ModelDefinition[] {
+	const catalog = getModelCatalog();
 
 	return catalog.filter((model) => {
 		if (model.access === "free") return true;
@@ -487,11 +434,11 @@ export async function getUserAvailableModels(
 	});
 }
 
-export async function validateModelAccess(
+export function validateModelAccess(
 	modelId: string,
 	userApiKeys: Record<string, string>,
-): Promise<boolean> {
-	const model = await getModelDefinition(modelId);
+): boolean {
+	const model = getModelDefinition(modelId);
 	if (!model) return false;
 
 	if (model.access === "byok") {
@@ -502,8 +449,8 @@ export async function validateModelAccess(
 	return true;
 }
 
-export async function requiresAPIKey(modelId: string): Promise<boolean> {
-	const model = await getModelDefinition(modelId);
+export function requiresAPIKey(modelId: string): boolean {
+	const model = getModelDefinition(modelId);
 	return model?.access === "byok" || false;
 }
 

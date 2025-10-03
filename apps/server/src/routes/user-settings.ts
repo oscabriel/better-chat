@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { requireUserDO, UnauthorizedError } from "@/server/lib/guard";
+import { requireUserId, UnauthorizedError } from "@/server/lib/guard";
+import {
+	getUserSettingsRecord,
+	updateUserSettingsRecord,
+} from "@/server/lib/user-settings";
 
 const updateSettingsSchema = z.object({
 	selectedModel: z.string().optional(),
@@ -16,8 +20,8 @@ export const userSettingsRoutes = new Hono();
 // Get user settings
 userSettingsRoutes.get("/", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
-		const settings = await stub.getUserSettings();
+		const userId = await requireUserId(c);
+		const settings = await getUserSettingsRecord(userId);
 		return c.json(settings);
 	} catch (err) {
 		if (err instanceof UnauthorizedError) {
@@ -30,11 +34,10 @@ userSettingsRoutes.get("/", async (c) => {
 // Update user settings
 userSettingsRoutes.put("/", async (c) => {
 	try {
-		const { stub } = await requireUserDO(c);
+		const userId = await requireUserId(c);
 		const body = updateSettingsSchema.parse(await c.req.json());
 
-		await stub.updateUserSettings(body);
-		const updated = await stub.getUserSettings();
+		const updated = await updateUserSettingsRecord(userId, body);
 
 		return c.json(updated);
 	} catch (err) {

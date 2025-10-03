@@ -1,4 +1,11 @@
-import type { UserDurableObject } from "@/server/do/user-durable-object";
+import {
+	addCustomMcpServer,
+	getCustomMcpServers,
+	getUserSettingsRecord,
+	removeCustomMcpServer,
+	toggleCustomMcpServer,
+	updateUserSettingsRecord,
+} from "@/server/lib/user-settings";
 import type { MCPServerConfig } from "@/server/mcp/client";
 import { BUILT_IN_MCP_SERVERS } from "@/server/mcp/client";
 
@@ -15,21 +22,13 @@ export interface UserMCPServer {
 }
 
 export class MCPServerManager {
-	private stub: UserDurableObject;
-
-	constructor(stub: UserDurableObject) {
-		this.stub = stub;
-	}
+	constructor(private readonly userId: string) {}
 
 	async getUserMCPServers(): Promise<MCPServerConfig[]> {
-		// Get user's custom MCP servers from database
-		const customServers = await this.stub.getCustomMCPServers();
-
-		// Get user's enabled built-in servers from settings
-		const settings = await this.stub.getUserSettings();
+		const customServers = await getCustomMcpServers(this.userId);
+		const settings = await getUserSettingsRecord(this.userId);
 		const enabledBuiltInIds = settings.enabledMcpServers || [];
 
-		// Combine built-in and custom servers
 		const enabledBuiltIn = BUILT_IN_MCP_SERVERS.filter((server) =>
 			enabledBuiltInIds.includes(server.id),
 		);
@@ -58,7 +57,7 @@ export class MCPServerManager {
 	}): Promise<string> {
 		const serverId = `custom_${Date.now()}`;
 
-		await this.stub.addCustomMCPServer({
+		await addCustomMcpServer(this.userId, {
 			id: serverId,
 			name: serverData.name,
 			url: serverData.url,
@@ -73,27 +72,27 @@ export class MCPServerManager {
 	}
 
 	async removeCustomMCPServer(serverId: string): Promise<void> {
-		await this.stub.removeCustomMCPServer(serverId);
+		await removeCustomMcpServer(this.userId, serverId);
 	}
 
 	async toggleMCPServer(serverId: string, enabled: boolean): Promise<void> {
 		if (serverId.startsWith("custom_")) {
-			// Toggle custom server
-			await this.stub.toggleCustomMCPServer(serverId, enabled);
+			await toggleCustomMcpServer(this.userId, serverId, enabled);
 		} else {
-			// Toggle built-in server in user settings
-			const settings = await this.stub.getUserSettings();
+			const settings = await getUserSettingsRecord(this.userId);
 			let enabledServers = settings.enabledMcpServers || [];
 
 			if (enabled) {
 				if (!enabledServers.includes(serverId)) {
-					enabledServers.push(serverId);
+					enabledServers = [...enabledServers, serverId];
 				}
 			} else {
 				enabledServers = enabledServers.filter((id) => id !== serverId);
 			}
 
-			await this.stub.updateUserSettings({ enabledMcpServers: enabledServers });
+			await updateUserSettingsRecord(this.userId, {
+				enabledMcpServers: enabledServers,
+			});
 		}
 	}
 }

@@ -75,7 +75,7 @@ export const server = await Worker("server", {
 		GITHUB_CLIENT_ID: alchemy.secret(process.env.GITHUB_CLIENT_ID),
 		GITHUB_CLIENT_SECRET: alchemy.secret(process.env.GITHUB_CLIENT_SECRET),
 		OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
-		LLAMA_API_KEY: alchemy.secret(process.env.LLAMA_API_KEY),
+		OPENROUTER_API_KEY: alchemy.secret(process.env.OPENROUTER_API_KEY),
 		GOOGLE_GENERATIVE_AI_API_KEY: alchemy.secret(
 			process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 		),
