@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Notebook</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				font-family: system-ui, sans-serif;
+			}
+			body {
+				margin: 0 auto;
+				max-width: 40rem;
+				padding: 1rem;
+			}
+			textarea {
+				box-sizing: border-box;
+				width: 100%;
+				min-height: 12rem;
+				font: inherit;
+				padding: 0.75rem;
+				border-radius: 0.5rem;
+				border: 1px solid #8884;
+				resize: vertical;
+			}
+			.row {
+				display: flex;
+				gap: 0.5rem;
+				align-items: center;
+				margin-top: 0.5rem;
+			}
+			button {
+				font: inherit;
+				padding: 0.6rem 1.2rem;
+				border-radius: 0.5rem;
+				border: none;
+			}
+			#status {
+				font-size: 0.9rem;
+				color: gray;
+			}
+			#status.ok {
+				color: #256029;
+			}
+			#status.err {
+				color: #b00020;
+			}
+			@media (prefers-color-scheme: dark) {
+				#status.ok {
+					color: #7ddc8f;
+				}
+			}
+			details {
+				margin-top: 1rem;
+			}
+			blockquote {
+				white-space: pre-wrap;
+				border-left: 3px solid #8884;
+				margin: 0.5rem 0;
+				padding-left: 0.75rem;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h1>New note</h1>
+			<p>Write or dictate whatever is on your mind. Messy is fine.</p>
+			<textarea id="capture" placeholder="A half-formed thought goes here…"></textarea>
+			<div class="row">
+				<button id="save">Save capture</button>
+				<span id="status" role="status">Unsent</span>
+			</div>
+			<details id="captures" hidden>
+				<summary>Your captures</summary>
+				<div id="capture-list"></div>
+			</details>
+		</main>
+		<script type="module">
+			// Save states are honest (per the proposal):
+			//   Unsent            input not yet submitted
+			//   Saving…           submission in progress
+			//   Saved (confirmed) the server acknowledged persistence
+			//   Not saved         submission failed; text is kept in the editor
+			const status = document.getElementById("status");
+			const capture = document.getElementById("capture");
+			const list = document.getElementById("capture-list");
+			const capturesBox = document.getElementById("captures");
+
+			async function login() {
+				const res = await fetch("/api/dev/login");
+				if (!res.ok) {
+					status.textContent = "Not saved. Could not start a session; your text is kept.";
+					status.className = "err";
+					throw new Error("dev login failed");
+				}
+			}
+
+			async function load(noteId) {
+				const res = await fetch(`/api/notes/${noteId}`);
+				if (!res.ok) {
+					status.textContent = "Could not load this note. Your text is kept.";
+					status.className = "err";
+					return;
+				}
+				const note = await res.json();
+				capturesBox.hidden = false;
+				list.innerHTML = "";
+				for (const cap of note.captures) {
+					const q = document.createElement("blockquote");
+					q.textContent = cap.content;
+					list.appendChild(q);
+				}
+			}
+
+			document.getElementById("save").addEventListener("click", async () => {
+				const text = capture.value;
+				if (text.trim().length === 0) return;
+				status.textContent = "Saving…";
+				status.className = "";
+				const res = await fetch("/api/capture", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ text }),
+				});
+				if (res.ok) {
+					const { id } = await res.json();
+					status.textContent = "Saved. Confirmed by the server.";
+					status.className = "ok";
+					history.replaceState(null, "", `?note=${id}`);
+					await load(id);
+				} else {
+					// Never imply offline durability: the text stays in the editor.
+					status.textContent = "Not saved. Your text is still here.";
+					status.className = "err";
+				}
+			});
+
+			await login();
+			const noteId = new URLSearchParams(location.search).get("note");
+			if (noteId) await load(noteId);
+		</script>
+	</body>
+</html>

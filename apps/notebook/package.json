@@ -1,0 +1,21 @@
+{
+	"name": "notebook",
+	"main": "src/index.ts",
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev --port=3010",
+		"build": "wrangler deploy --dry-run",
+		"typecheck": "tsc -b",
+		"db:migrate:local": "wrangler d1 migrations apply DB --local",
+		"test": "bun run test/capture.ts"
+	},
+	"dependencies": {
+		"hono": "^4.10.8",
+		"zod": "^4.1.13"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20251212.0",
+		"typescript": "^5.9.3",
+		"wrangler": "^4.54.0"
+	}
+}

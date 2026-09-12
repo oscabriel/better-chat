@@ -1,0 +1,36 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "notebook-dev",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "notebook-db",
+			"database_id": "local-notebook-db"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "NOTE_AGENT",
+				"class_name": "NoteAgent"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["NoteAgent"]
+		}
+	],
+	"vars": {
+		"DEV_LOGIN": "1",
+		"SESSION_SECRET": "dev-only-not-a-secret"
+	}
+}
