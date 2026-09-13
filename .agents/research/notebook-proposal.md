@@ -6,6 +6,8 @@ This proposal records the product direction and high-level architecture discusse
 
 The product direction is individual thought work: personal agents that live in your notebook, organized around pressing decisions and ideas that are not fully formed yet. The ideas belong to the user. Agents help the user make sense of them, express them, and challenge them.
 
+Positioning, set during the grilling session: Better Chat is an agent harness for deep thought. Not knowledge work, not research, not coding. Deep thought is what comes before all of that: figuring out what the right thing to work on is, before spending effort working on the wrong thing. Everything downstream of that decision is out of scope; the notebook is the upstream tool.
+
 The existing Better Chat application is inspiration and a possible source of reusable code. Its architecture, dependencies, and data model are not constraints. A fresh application is acceptable. Every retained dependency needs review and an update to its current compatible release before implementation.
 
 This proposal supersedes the earlier emphasis on a delegated-work management inbox. It also removes the earlier suggestions for concurrent agent editing, a local IndexedDB database, and a separate Notebook Agent.

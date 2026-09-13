@@ -1,6 +1,12 @@
 # Better Chat
 
-Glossary for the agent-notebook product: individual thought work where agents help a user develop the user's own ideas in notes. One context. Implementation details live in `.agents/research/notebook-proposal.md` and the ADRs beside this file.
+Glossary for the agent-notebook product: an agent harness for deep thought. Deep thought is what precedes knowledge work, research, and coding: figuring out what the right thing to work on is. One context. Implementation details live in `.agents/research/notebook-proposal.md` and the ADRs beside this file.
+
+## Language
+
+**Deep thought**:
+The thinking that decides what is worth working on, before any knowledge work, research, or coding begins. The object of this product; everything downstream of it is out of scope.
+_Avoid_: knowledge work, research (as the product's purpose), productivity
 
 ## Records
 
