@@ -1,6 +1,6 @@
-# Better Chat
+# Thinkspace
 
-Glossary for the agent-notebook product: an agent harness for deep thought. Deep thought is what precedes knowledge work, research, and coding: figuring out what the right thing to work on is. One context. Implementation details live in `.agents/research/notebook-proposal.md` and the ADRs beside this file.
+Glossary for Thinkspace, the agent-notebook product: an agent harness for deep thought. Deep thought is what precedes knowledge work, research, and coding: figuring out what the right thing to work on is. Developed under the name Better Chat; the product name is Thinkspace. One context. Implementation details live in `.agents/research/notebook-proposal.md` and the ADRs beside this file.
 
 ## Language
 
